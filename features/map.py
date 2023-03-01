@@ -2,6 +2,27 @@ import pyproj
 import numpy as np
 import pandas as pd
 
+def preprocess_data(df):
+    """
+    Preprocesses a given DataFrame.
+
+    Args:
+    - df (pandas DataFrame): input DataFrame to preprocess
+
+    Returns:
+    - df (pandas DataFrame): preprocessed DataFrame
+    """
+    df['longueur'] = df['longueur'].str.replace(',', '.')
+    df['longueur'] = df['longueur'].astype(float)
+    df['ratio_PL'] = df['ratio_PL'].str.replace(',', '.')
+    df['ratio_PL'] = df['ratio_PL'].fillna(0.0)
+    df['ratio_PL'] = df['ratio_PL'].astype(float)
+
+    df['TMJA_PL'] = round(df['TMJA']*df['ratio_PL'],2)
+
+    return df
+
+
 def add_lat_lon_columns(df):
     """
     Adds new columns 'lonD', 'latD', 'lonF', 'latF' to the dataframe with
