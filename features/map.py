@@ -1,6 +1,7 @@
 import pyproj
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 
 def preprocess_data(df):
     """
@@ -18,7 +19,56 @@ def preprocess_data(df):
     df['ratio_PL'] = df['ratio_PL'].fillna(0.0)
     df['ratio_PL'] = df['ratio_PL'].astype(float)
 
-    df['TMJA_PL'] = round(df['TMJA']*df['ratio_PL'],2)
+    df['TMJA_PL'] = round((df['TMJA']*df['ratio_PL'])/100,2)
+
+    return df
+
+def grouped_region(df, shape_file):
+    """
+    Preprocesses a given DataFrame to group per region, sum the total distance of roads, and add the shape file informations.
+
+    Args:
+    - df (pandas DataFrame): input DataFrame to preprocess
+    - shape_file: the path of the shape file
+
+    Returns:
+    - df (pandas DataFrame): new DataFrame
+    """
+
+    #load the shape file
+    map_df = gpd.read_file(shape_file)
+    map_df['nom'] = map_df['nom'].astype(str)
+
+    #groupby region, sum the distance and average the traffic and surface
+    df = df.groupby(['region']).agg({'longueur': 'sum', 'TMJA_PL': 'mean'}).reset_index()
+    df['TMJA_PL'] = round(df['TMJA_PL'], 2)
+    df['longueur'] = df['longueur'] / 1000 # convert to thousands of kilometers
+    df = df.rename(columns={'longueur': 'longueur (K km)', 'TMJA_PL': 'Avg TMJA_PL'})
+
+    #merges shape file
+    merged = map_df.merge(df, left_on='nom', right_on='region')
+    merged = merged[merged.columns[4:9]]
+    merged['surf_km2'] = merged['surf_km2'] / 1000  # convert to K km²
+
+    #add density column
+    df_grouped_r = merged
+    df_grouped_r['density_road (K km/km2)'] = round((df_grouped_r['longueur (K km)']*df_grouped_r['surf_km2']),2)
+
+    return df_grouped_r
+
+def distance_road_region(data_path):
+    """
+    Takes in a data path, load the DF and sums the total distance of National and Autoroute roads
+
+    Args:
+    - data_path (pandas DataFrame): path to .xlsx file
+
+    Returns:
+    - df (pandas DataFrame): DataFrame
+    """
+    df = pd.read_excel(data_path, sheet_name='REG')
+    df['Routes_tot'] = df['Autoroutes'] + df['Routes nationales']
+    df = df[df.columns[[0, 1, 2, 4]]]
 
     return df
 
@@ -70,6 +120,15 @@ def add_region_column(df):
         '07': 'Auvergne-Rhône-Alpes',
         '08': 'Grand Est',
         '09': 'Occitanie',
+        '1': 'Auvergne-Rhône-Alpes',
+        '2': 'Hauts-de-France',
+        '3': 'Auvergne-Rhône-Alpes',
+        '4': 'Provence-Alpes-Côte d\'Azur',
+        '5': 'Provence-Alpes-Côte d\'Azur',
+        '6': 'Provence-Alpes-Côte d\'Azur',
+        '7': 'Auvergne-Rhône-Alpes',
+        '8': 'Grand Est',
+        '9': 'Occitanie',
         '10': 'Grand Est',
         '11': 'Occitanie',
         '12': 'Occitanie',
