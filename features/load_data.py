@@ -19,7 +19,12 @@ def preprocess_data(df):
     df['ratio_PL'] = df['ratio_PL'].fillna(0.0)
     df['ratio_PL'] = df['ratio_PL'].astype(float)
 
-    df['TMJA_PL'] = round((df['TMJA']*df['ratio_PL'])/100,2)
+    #fix ratio_PL issue
+    condition = df['ratio_PL'] > 40
+    df.loc[condition, 'ratio_PL'] /= 10
+
+    #Add density
+    df['TMJA_PL'] = round((df['TMJA']*(df['ratio_PL']/100)),2)
 
     return df
 
@@ -226,3 +231,26 @@ def add_region_column(df):
 
     return df
 
+def create_part1_data(route_region_path, region_df):
+    """
+    Takes in a data path, load the DF and merges with the previously processed region dataframe
+
+    Args:
+    - data_path (pandas DataFrame): path to .xlsx file
+
+    Returns:
+    - df (pandas DataFrame): DataFrame with route distances per region
+    """
+    route_data = distance_road_region(route_region_path)
+
+    # merge region and route to have the AVG TMJA_PL
+    df_route_traffic = route_data.merge(region_df, left_on="Région", right_on="region")
+    df_route_traffic = df_route_traffic[df_route_traffic.columns[[0, 1, 2, 3, 8]]]
+    
+    # Calculate the sum of the Avg TMJA_PL column
+    tmja_sum = df_route_traffic['Avg TMJA_PL'].sum()
+
+    # Calculate the percentage of traffic in each region
+    df_route_traffic['percentage_traffic'] = round(df_route_traffic['Avg TMJA_PL'] / tmja_sum, 2)
+
+    return df_route_traffic
