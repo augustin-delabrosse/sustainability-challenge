@@ -74,7 +74,7 @@ def calculate_hydrogen_stations(df, daimler_perc, nikola_perc, daf_perc, year):
         hydrogen_daf = daf_num_stops_per_day * tank_size_daf * (num_daf_trucks * row['percentage_traffic'])
 
         #total hydrogen needed daily
-        total_hydrogen = hydrogen_dailmer + hydrogen_dailmer + hydrogen_daf
+        total_hydrogen = hydrogen_dailmer + hydrogen_nikola + hydrogen_daf
 
         #stations needed
         stations = total_hydrogen / capacity_stations

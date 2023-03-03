@@ -26,6 +26,12 @@ def preprocess_data(df):
     #Add density
     df['TMJA_PL'] = round((df['TMJA']*(df['ratio_PL']/100)),2)
 
+    # Calculate the sum of the Avg TMJA_PL column
+    tmja_sum = df['TMJA_PL'].sum()
+
+    # Calculate the percentage of traffic in each region
+    df['percentage_traffic'] = round(df['TMJA_PL'] / tmja_sum, 2)
+
     return df
 
 def grouped_region(df, shape_file):
