@@ -43,17 +43,27 @@ station_info = {
 df_station_info = pd.DataFrame(station_info).reset_index(drop=True)
 total_demand = 122100
 
-def threshold(df:pd.DataFrame)-> float:
+def threshold(df_station_info :pd.DataFrame)-> float:
     '''
     This functions calculates the necessary amount of sales in T/day to be profitable depending on station's sizes
     '''
-    small_prof_threshold = df.loc[df['station_type'] == 'small', 'prof_threshold'].iloc[0] * df.loc[df['station_type'] == 'small', 'storage'].iloc[0]
-    medium_prof_threshold = df.loc[df['station_type'] == 'medium', 'prof_threshold'].iloc[0] * df.loc[df['station_type'] == 'medium', 'storage'].iloc[0]
-    large_prof_threshold = df.loc[df['station_type'] == 'large', 'prof_threshold'].iloc[0] * df.loc[df['station_type'] == 'large', 'storage'].iloc[0]
+    small_prof_threshold = df_station_info.loc[df_station_info['station_type'] == 'small', 'prof_threshold'].iloc[0] * df_station_info.loc[df_station_info['station_type'] == 'small', 'storage'].iloc[0]
+    medium_prof_threshold = df_station_info.loc[df_station_info['station_type'] == 'medium', 'prof_threshold'].iloc[0] * df_station_info.loc[df_station_info['station_type'] == 'medium', 'storage'].iloc[0]
+    large_prof_threshold = df_station_info.loc[df_station_info['station_type'] == 'large', 'prof_threshold'].iloc[0] * df_station_info.loc[df_station_info['station_type'] == 'large', 'storage'].iloc[0]
     return small_prof_threshold, medium_prof_threshold, large_prof_threshold
 # Calculate Demand
 
-def sales(df:pd.DataFrame,year: float)-> pd.DataFrame:
+def preprocess_station (df_station: pd.DataFrame,df_tmja: pd.DataFrame) -> pd.DataFrame:
+    '''
+    This functions adds traffic information relative to the stations
+    '''
+    df_station = df_station.drop(['URL','Lavage','Paiement'],axis =1)
+    df_station['route_id'] = df_tmja.iloc[df_station['Closer_route_by_index']]['route'].iloc[0]
+    df_station = df_station.merge(df_tmja[['route','TMJA_PL','percentage_traffic']], left_on='route_id',right_on='route')
+    
+    return df_station
+
+def sales(df_station:pd.DataFrame,year: float)-> pd.DataFrame:
     '''
     This functions calculates the amount sold at each new stations in kg/day.
     '''
@@ -62,45 +72,46 @@ def sales(df:pd.DataFrame,year: float)-> pd.DataFrame:
     if year not in h2_price_dict:
         raise ValueError('Year can only be 2023, 2030 or 2040')
     
-    df['Quantity_sold_per_day(in kg)'] = total_demand * df['TMJA_PL'] * df['percentage_traffic'] *  (1 / df.groupby('route_id')['route_id'].transform('count'))
-    df['Revenues'] = df['Quantity_sold_per_day(in kg)']  * h2_price_dict
-    return df
+    df_station['Quantity_sold_per_day(in kg)'] = total_demand * df_station['percentage_traffic'] *  (1 / df_station.groupby('route_id')['route_id'].transform('count'))
+    df_station['Revenues'] = df_station['Quantity_sold_per_day(in kg)']  * h2_price_dict
+    return df_station
 
-def station_type(df:pd.DataFrame, df_info: pd.DataFrame)-> pd.DataFrame:
+def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.DataFrame:
     '''
     This function allocates the size of station depeding on revenues
     '''
 
-    small_prof_threshold, medium_prof_threshold, large_prof_threshold = threshold(df_info)
-    conditions = [    (df['small_station'] == 1),
-    (df['medium_station'] == 1),
-    (df['large_station'] == 1)]
+    small_prof_threshold, medium_prof_threshold, large_prof_threshold = threshold(df_station_info)
+    conditions = [    (df_station['small_station'] == 1),
+    (df_station['medium_station'] == 1),
+    (df_station['large_station'] == 1)]
 
     values = ['small', 'medium', 'large']
 
 
-    df['small_station'] = np.where(df['Quantity_sold_per_day(in kg)'] * 0.365 >  small_prof_threshold, 1,0)
-    df['medium_station'] = np.where(df['Quantity_sold_per_day(in kg)'] * 0.365 >  medium_prof_threshold, 1,0)
-    df['large_station'] = np.where(df['Quantity_sold_per_day(in kg)'] * 0.365 >  large_prof_threshold, 1,0)
+    df_station['small_station'] = np.where(df_station['Quantity_sold_per_day(in kg)'] * 0.365 >  small_prof_threshold, 1,0)
+    df_station['medium_station'] = np.where(df_station['Quantity_sold_per_day(in kg)'] * 0.365 >  medium_prof_threshold, 1,0)
+    df_station['large_station'] = np.where(df_station['Quantity_sold_per_day(in kg)'] * 0.365 >  large_prof_threshold, 1,0)
 
-    df['station_type'] = np.select(conditions, values, default='other')
-    return df
+    df_station['station_type'] = np.select(conditions, values, default='other')
+    return df_station
 
-def financials(df:pd.DataFrame, df_info: pd.DataFrame)-> pd.DataFrame:
+def financials(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.DataFrame:
     '''
     This function provides an overview of the P&L for each station
     '''
-    df['EBITDA'] = df['Revenues']- df['station_type'].map(df_station_info.set_index('station_type')['opex'])
-    df_info['yearly_depreciation'] = df_info['capex'] * df_info ['depreciation']
-    df['EBIT'] = df['Revenues']- df['station_type'].map(df_station_info.set_index('station_type')['opex'])
+    df_station['EBITDA'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['opex'])
+    df_station_info['yearly_depreciation'] = df_station_info['capex'] * df_station_info['depreciation']
+    df_station['EBIT'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['opex'])
+    return df_station
 
-def financial_summary(df:pd.DataFrame) -> pd.DataFrame:
+def financial_summary(df_station:pd.DataFrame) -> pd.DataFrame:
     '''
     This functions give the consolidated financials of the deployment of all the stations
     '''
-    total_revenues, total_EBITDA = df['Revenues'].sum(), df['EBITDA'].sum()
+    total_revenues, total_EBITDA = df_station['Revenues'].sum(), df_station['EBITDA'].sum()
     total_opex = total_revenues - total_EBITDA
-    total_EBIT = df['EBIT'].sum()
+    total_EBIT = df_station['EBIT'].sum()
     summary_df = pd.DataFrame({
         'Total Revenues': [total_revenues],
         'Total Opex': [total_opex],
