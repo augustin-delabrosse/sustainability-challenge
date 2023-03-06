@@ -1,4 +1,4 @@
-from libpysal import weights, examples
+
 from shapely.geometry import Point
 import os
 import csv
@@ -7,11 +7,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import re
-import folium
 import geopandas as gpd
-import mapclassify
 from shapely.geometry import shape
-import geocoder
 from shapely.geometry import Point, LineString, MultiPoint
 import datetime
 from tqdm import tqdm
@@ -82,9 +79,9 @@ def station_type(df:pd.DataFrame, df_info: pd.DataFrame)-> pd.DataFrame:
     values = ['small', 'medium', 'large']
 
 
-    df['small_station'] = np.where(df['Revenues'] * 0.365 >  small_prof_threshold, 1,0)
-    df['medium_station'] = np.where(df['Revenues'] * 0.365 >  medium_prof_threshold, 1,0)
-    df['large_station'] = np.where(df['Revenues'] * 0.365 >  large_prof_threshold, 1,0)
+    df['small_station'] = np.where(df['Quantity_sold_per_day(in kg)'] * 0.365 >  small_prof_threshold, 1,0)
+    df['medium_station'] = np.where(df['Quantity_sold_per_day(in kg)'] * 0.365 >  medium_prof_threshold, 1,0)
+    df['large_station'] = np.where(df['Quantity_sold_per_day(in kg)'] * 0.365 >  large_prof_threshold, 1,0)
 
     df['station_type'] = np.select(conditions, values, default='other')
     return df
