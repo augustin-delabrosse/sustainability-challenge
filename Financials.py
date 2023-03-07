@@ -89,8 +89,8 @@ def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.Da
     values = ['small', 'medium', 'large']
 
 
-    df_station['small_station'] = np.where(df_station['Quantity_sold_per_day(in kg)'] * 0.365 >  small_prof_threshold, 1,0)
-    df_station['medium_station'] = np.where(df_station['Quantity_sold_per_day(in kg)'] * 0.365 >  medium_prof_threshold, 1,0)
+    df_station['small_station'] = np.where((df_station['Quantity_sold_per_day(in kg)'] * 0.365 >  small_prof_threshold) & (df_station['Quantity_sold_per_day(in kg)'] * 0.365 <  medium_prof_threshold), 1,0)
+    df_station['medium_station'] = np.where((df_station['Quantity_sold_per_day(in kg)'] * 0.365 >  medium_prof_threshold) & (df_station['Quantity_sold_per_day(in kg)'] * 0.365 <  large_prof_threshold) , 1,0)
     df_station['large_station'] = np.where(df_station['Quantity_sold_per_day(in kg)'] * 0.365 >  large_prof_threshold, 1,0)
 
     df_station['station_type'] = np.select(conditions, values, default='other')
