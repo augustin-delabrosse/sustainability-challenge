@@ -68,7 +68,7 @@ def sales(df_station:pd.DataFrame,year: float)-> pd.DataFrame:
     This functions calculates the amount sold at each new stations in kg/day.
     '''
     h2_price_dict = {2023: 15, 2030: 7, 2040: 4}
-    
+    df_station = preprocess_station(df_station)
     if year not in h2_price_dict:
         raise ValueError('Year can only be 2023, 2030 or 2040')
     
@@ -82,6 +82,7 @@ def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.Da
     '''
 
     small_prof_threshold, medium_prof_threshold, large_prof_threshold = threshold(df_station_info)
+    df_station = sales(df_station)
     conditions = [    (df_station['small_station'] == 1),
     (df_station['medium_station'] == 1),
     (df_station['large_station'] == 1)]
@@ -100,18 +101,30 @@ def financials(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.Data
     '''
     This function provides an overview of the P&L for each station
     '''
+    df_station = station_type(df_station, df_station_info)
     df_station['EBITDA'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['opex'])
     df_station_info['yearly_depreciation'] = df_station_info['capex'] * df_station_info['depreciation']
     df_station['EBIT'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['opex'])
     return df_station
 
+def capex(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.DataFrame:
+    '''
+    This function provides an overview of the capex needs for each station
+    '''
+    df_station['CAPEX'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['capex'])
+
 def financial_summary(df_station:pd.DataFrame) -> pd.DataFrame:
     '''
     This functions give the consolidated financials of the deployment of all the stations
     '''
+    
+    df_station = financials(df_station, df_station_info)
+    df_station = capex(df_station, df_station_info)
+
     total_revenues, total_EBITDA = df_station['Revenues'].sum(), df_station['EBITDA'].sum()
     total_opex = total_revenues - total_EBITDA
     total_EBIT = df_station['EBIT'].sum()
+    total_capex = df_station['CAPEX'].sum()
     summary_df = pd.DataFrame({
         'Total Revenues': [total_revenues],
         'Total Opex': [total_opex],
