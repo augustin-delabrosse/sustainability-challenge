@@ -41,7 +41,7 @@ station_info = {
 }
 
 df_station_info = pd.DataFrame(station_info).reset_index(drop=True)
-total_demand = 122100
+total_demand = 1110000
 
 def threshold(df_station_info :pd.DataFrame)-> float:
     '''
@@ -93,11 +93,11 @@ def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.Da
 
     df_station['not_prof'] = (df_station['Quantity_sold_per_year(in kg)']/1000< small_prof_threshold).astype(int)
 
-    df_station['small_station'] = ((df_station['Quantity_sold_per_year(in kg)']/1000>= small_prof_threshold) &
-                                   (df_station['Quantity_sold_per_year(in kg)']/1000< medium_prof_threshold)).astype(int)
+    df_station['small_station'] = ((df_station['Quantity_sold_per_year(in kg)']/1000 >= small_prof_threshold) &
+                                   (df_station['Quantity_sold_per_year(in kg)']/1000 < medium_prof_threshold)).astype(int)
     
-    df_station['medium_station'] = ((df_station['Quantity_sold_per_year(in kg)']/1000>= medium_prof_threshold) &
-                                    (df_station['Quantity_sold_per_year(in kg)']/1000< large_prof_threshold)).astype(int)
+    df_station['medium_station'] = ((df_station['Quantity_sold_per_year(in kg)']/1000 >= medium_prof_threshold) &
+                                    (df_station['Quantity_sold_per_year(in kg)']/1000 < large_prof_threshold)).astype(int)
     
     df_station['large_station'] = (df_station['Quantity_sold_per_year(in kg)']/1000>= large_prof_threshold).astype(int)
     
@@ -116,11 +116,11 @@ def financials(df_station:pd.DataFrame, df_station_info: pd.DataFrame,year: floa
     df_station = station_type(df_station, df_station_info)
     df_station = sales(df_station,year)
     df_station['Revenues'] = df_station['Revenues_day'] * 365
-    df_station['EBITDA'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['opex'])
+    df_station['EBITDA'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['opex']*1000000)
     df_station['Opex'] = df_station['Revenues'] - df_station['EBITDA']
 
     df_station_info['yearly_depreciation'] = df_station_info['capex'] * df_station_info['depreciation']
-    df_station['EBIT'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['opex'])
+    df_station['EBIT'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['yearly_depreciation'])
     df_station['depreciation'] = df_station['EBITDA'] - df_station['EBIT']
 
     fin = ['Revenues','EBITDA','EBIT','depreciation','Opex']
@@ -134,26 +134,6 @@ def capex(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.DataFrame
     df_station['CAPEX'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['capex'])
     return df_station
 
-def financial_summary_1(df_station:pd.DataFrame) -> pd.DataFrame:
-    '''
-    This functions give the consolidated financials of the deployment of all the stations
-    '''
-    
-    df_station = financials(df_station, df_station_info)
-    df_station = capex(df_station, df_station_info)
-
-    total_revenues, total_EBITDA = df_station['Revenues'].sum(), df_station['EBITDA'].sum()
-    total_opex = total_revenues - total_EBITDA
-    total_EBIT = df_station['EBIT'].sum()
-    total_capex = df_station['CAPEX'].sum()
-    summary_df = pd.DataFrame({
-        'Total Capex': [total_capex],
-        'Total Revenues': [total_revenues],
-        'Total Opex': [total_opex],
-        'Total EBITDA': [total_EBITDA],
-        'Total EBIT': [total_EBIT]
-    })
-    return summary_df
 
 def financial_summary(df_station:pd.DataFrame,df_station_info: pd.DataFrame,year: float) -> pd.DataFrame:
     '''
@@ -172,8 +152,8 @@ def financial_summary(df_station:pd.DataFrame,df_station_info: pd.DataFrame,year
     return summary_df
 
 
-#results = pd.read_csv(r"C:\Users\cesar\Dropbox\My PC (LAPTOP-GU3S2J8B)\Downloads\results.csv")
+results = pd.read_csv(r"C:\Users\cesar\Dropbox\My PC (LAPTOP-GU3S2J8B)\Downloads\results.csv")
 #station_type(results, df_station_info)
 #b = sales(results,2030)
-#b = financial_summary(results,df_station_info,2040)
-#print(b)
+b = financial_summary(results,df_station_info,2040)
+print(b)
