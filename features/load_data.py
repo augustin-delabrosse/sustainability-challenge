@@ -260,3 +260,4 @@ def create_part1_data(route_region_path, region_df):
     df_route_traffic['percentage_traffic'] = round(df_route_traffic['Avg TMJA_PL'] / tmja_sum, 2)
 
     return df_route_traffic
+
