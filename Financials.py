@@ -13,7 +13,7 @@ from shapely.geometry import Point, LineString, MultiPoint
 import datetime
 from tqdm import tqdm
 import math
-
+import random
 # Hydrogen fuel price
 #source: https://www.autonews.fr/green/voiture-hydrogene#:~:text=Quant%20au%20plein%20d%27hydrog%C3%A8ne,diminuer%20avec%20son%20d%C3%A9veloppement%20progressif.
 # source: https://reglobal.co/cost-of-ownership-of-fuel-cell-hydrogen-trucks-in-europe/
@@ -51,11 +51,6 @@ def threshold(df_station_info :pd.DataFrame)-> float:
     return df_station_info
 # Calculate Demand
 
-def station_size(df_station: pd.DataFrame,df_stations_info)-> pd.DataFrame:
-    '''
-    This function derives the station size depending on quantity sold and the profitability thresholds
-    '''
-    df_station['Quantity_sold_per_year(in kg)']= df_station['Quantity_sold_per_day(in kg)']*365
 
 
 def preprocess_station(df_station: pd.DataFrame,df_tmja: pd.DataFrame) -> pd.DataFrame:
@@ -152,8 +147,120 @@ def financial_summary(df_station:pd.DataFrame,df_station_info: pd.DataFrame,year
     return summary_df
 
 
+
+def deployment_dates(df_station:pd.DataFrame,year_start: float,year_end: float)-> pd.DataFrame:
+    '''
+    This function assigns the year of deployment for each functions depending on its revenue
+    '''
+    
+    sorted_df = df_station.sort_values(by='Revenues', ascending=False)
+    n_stations = len(sorted_df)
+    n_years = year_end - year_start + 1
+    n_stations_per_group = math.ceil(n_stations / n_years)
+    groups = []
+    for i in range(n_years):
+        start = i * n_stations_per_group
+        end = (i+1) * n_stations_per_group
+        group = sorted_df.iloc[start:end]
+        groups.append(group)
+
+    installation_years = [year_start + i for i in range(n_years)]
+    installation_dates = {}
+    for group, year in zip(groups, installation_years):
+        for url in group['geometry']:
+            installation_dates[url] = year
+
+    date_df = pd.DataFrame({'geometry': df_station['geometry'], 'date_installation': [installation_dates.get(s, year_end) for s in df_station['geometry']]})
+
+    # Merge the installation dates dataframe with the original dataframe
+    merged_df = pd.merge(df_station, date_df, on='geometry')
+
+    return merged_df
+
+def deployment_financials(df_station:pd.DataFrame,year_start: float,year_end: float)-> pd.DataFrame:
+ 
+
+    df_station = deployment_dates(df_station,year_start,year_end)
+    years = sorted(df_station['date_installation'].unique())
+
+    data = {}
+
+    for i, year in enumerate(years):
+        prev_years = years[:i+1]
+        cumulative_sales = df_station[df_station['date_installation'].isin(prev_years)]['Quantity_sold_per_year(in kg)'].sum()
+        cumulative_revenues = df_station[df_station['date_installation'].isin(prev_years)]['Revenues'].sum()
+        cumulative_opex = df_station[df_station['date_installation'].isin(prev_years)]['Opex'].sum()
+        cumulative_ebitda = df_station[df_station['date_installation'].isin(prev_years)]['EBITDA'].sum()
+        cumulative_depreciation = df_station[df_station['date_installation'].isin(prev_years)]['depreciation'].sum()
+        cumulative_ebit = df_station[df_station['date_installation'].isin(prev_years)]['EBIT'].sum()
+        small_sation = df_station[df_station['date_installation'].isin(prev_years)]['small_station'].sum()
+        medium_sation = df_station[df_station['date_installation'].isin(prev_years)]['medium_station'].sum()
+        large_sation = df_station[df_station['date_installation'].isin(prev_years)]['large_station'].sum()
+        
+        data[year] = [cumulative_sales,cumulative_revenues,cumulative_opex, cumulative_ebitda,cumulative_depreciation,cumulative_ebit,small_sation,medium_sation,large_sation]
+
+    # Create a dataframe from the data dictionary, with the years as columns and the financial metrics as rows
+    df_cumulative_financials = pd.DataFrame.from_dict(data, orient='index', columns=['sales','revenues','opex' , 'ebitda','depreciation','ebit','small_station','medium_station','large_station'])
+
+    return df_cumulative_financials
+
+def sceanrio_select(df_deployments: pd.DataFrame, percentage: float) -> pd.DataFrame:
+    """
+    This function randomly selects a given percentage of each station each year, and outputs a dataframe with all the randomly selected years.
+
+    """
+    years = df_deployments['date_installation'].unique()
+    
+    selected_years = {}
+    for year in years:
+        year_stations = df_deployments[df_deployments['date_installation'] == year]['geometry']
+        n_select = int(round(percentage * len(year_stations)))
+        selected_stations = random.sample(list(year_stations), n_select)
+        # Store selected years for each station in the dictionary
+        for station in selected_stations:
+            selected_years[station] = year
+
+    selected_years_df = pd.DataFrame.from_dict(selected_years, orient='index', columns=['random_year'])
+    
+    # Merge the selected years dataframe with the original dataframe
+    output_df = pd.merge(df_deployments, selected_years_df, left_on='geometry', right_index=True)
+
+    return output_df
+
+def deployment_financials(df_station:pd.DataFrame,year_start: float,year_end: float)-> pd.DataFrame:
+    '''
+    This functions gives a detail financial overview of the cumulatitve stations metrics
+    
+    '''
+    df_station = deployment_dates(df_station,year_start,year_end)
+    years = sorted(df_station['date_installation'].unique())
+
+    data = {}
+
+
+    for i, year in enumerate(years):
+        prev_years = years[:i+1]
+        cumulative_sales = df_station[df_station['date_installation'].isin(prev_years)]['Quantity_sold_per_year(in kg)'].sum()
+        cumulative_revenues = df_station[df_station['date_installation'].isin(prev_years)]['Revenues'].sum()
+        cumulative_opex = df_station[df_station['date_installation'].isin(prev_years)]['Opex'].sum()
+        cumulative_ebitda = df_station[df_station['date_installation'].isin(prev_years)]['EBITDA'].sum()
+        cumulative_depreciation = df_station[df_station['date_installation'].isin(prev_years)]['depreciation'].sum()
+        cumulative_ebit = df_station[df_station['date_installation'].isin(prev_years)]['EBIT'].sum()
+        small_sation = df_station[df_station['date_installation'].isin(prev_years)]['small_station'].sum()
+        medium_sation = df_station[df_station['date_installation'].isin(prev_years)]['medium_station'].sum()
+        large_sation = df_station[df_station['date_installation'].isin(prev_years)]['large_station'].sum()
+        
+        data[year] = [cumulative_sales,cumulative_revenues,cumulative_opex, cumulative_ebitda,cumulative_depreciation,cumulative_ebit,small_sation,medium_sation,large_sation]
+
+    df_cumulative_financials = pd.DataFrame.from_dict(data, orient='index', columns=['sales','revenues','opex' , 'ebitda','depreciation','ebit','small_station','medium_station','large_station'])
+
+    return df_cumulative_financials
+
+
 results = pd.read_csv(r"C:\Users\cesar\Dropbox\My PC (LAPTOP-GU3S2J8B)\Downloads\results.csv")
-#station_type(results, df_station_info)
+results  = financials(results, df_station_info,2030)
+results = deployment_dates(results,2030,2045)
 #b = sales(results,2030)
-b = financial_summary(results,df_station_info,2040)
-print(b)
+#b = financial_summary(results,df_station_info,2040)
+
+#print(b)
