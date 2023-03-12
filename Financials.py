@@ -142,11 +142,11 @@ def financial_summary(df_station:pd.DataFrame,df_station_info: pd.DataFrame,year
                             index=[],
                             columns=['station_type'], 
                             aggfunc=np.sum, fill_value=0)
-    summary_df.loc['Total'] = summary_df.sum()
+    #summary_df.loc['Total'] = summary_df.sum()
     
     return summary_df
 
-
+## Part 3
 
 def deployment_dates(df_station:pd.DataFrame,year_start: float,year_end: float)-> pd.DataFrame:
     '''
@@ -204,7 +204,7 @@ def deployment_financials(df_station:pd.DataFrame,year_start: float,year_end: fl
 
     return df_cumulative_financials
 
-def sceanrio_select(df_deployments: pd.DataFrame, percentage: float) -> pd.DataFrame:
+def scenario_select(df_deployments: pd.DataFrame, percentage: float) -> pd.DataFrame:
     """
     This function randomly selects a given percentage of each station each year, and outputs a dataframe with all the randomly selected years.
 
@@ -256,10 +256,59 @@ def deployment_financials(df_station:pd.DataFrame,year_start: float,year_end: fl
 
     return df_cumulative_financials
 
+def plotting_installations(df:pd.core.frame.DataFrame):
+    """
+    Plot the installation dates of H2 stations on a map.
+    Parameters:
+        df : DataFrame
+            A DataFrame containing data on H2 stations' installation, including their
+            location and installation date.
+    Returns:
+        A plot of the H2 station locations overlaid on a map, with the color of each
+            station indicating its installation date.
+    """
 
-results = pd.read_csv(r"C:\Users\cesar\Dropbox\My PC (LAPTOP-GU3S2J8B)\Downloads\results.csv")
-results  = financials(results, df_station_info,2030)
-results = deployment_dates(results,2030,2045)
+    if type(df.geometry[:1].values[0]) == str:
+        df = convert_str_geometry_to_geometry_geometry(df)
+        
+    shp_file = gpd.GeoDataFrame(df, crs="epsg:2154")
+    shp_file = shp_file[['URL', 'nom_region', 'geometry', 'closest_road',
+       'closest_large_hub', 'closest_dense_hub', 'TMJA_PL', 'percentage_traffic',
+       'Quantity_sold_per_day(in kg)', 'Revenues', 'bool', 'size',
+       'Quantity_sold_per_year(in kg)', 'station_type', 'Revenues_day',
+       'EBITDA', 'Opex', 'EBIT', 'depreciation', 'date_installation']]
+    
+    exploration = shp_file.explore(column="date_installation", cmap="Blues")
+    
+    return exploration
+
+# Part 4
+# Assumptions from slides
+factory_info = {
+    'station_type': ['small', 'large'],
+    'capex': [20, 120],
+    'depreciation': [0.15,0.15],
+    'opex': [0.03 * 20, 0.03 * 150],
+    'Power_usage': [55, 50],
+    'water_consumption': [10, 10],
+
+}
+
+df_factory_info = pd.DataFrame(factory_info).reset_index(drop=True)
+Transport_by_truck = 0.008
+
+
+
+
+
+
+
+
+#results = pd.read_csv(r"C:\Users\cesar\Dropbox\My PC (LAPTOP-GU3S2J8B)\Downloads\results.csv")
+
+#results  = financials(results, df_station_info,2030)
+
+#results = deployment_dates(results,2030,2045)
 #b = sales(results,2030)
 #b = financial_summary(results,df_station_info,2040)
 
