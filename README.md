@@ -59,6 +59,7 @@ To properly get the data, one has to download it locally on his/her computer, un
 #### features
 
 1) config.py
+
 This python script is used to combine several classes with parameters and results for Part 1 and financial considerations.
 
 The *Parameters_part_1* class defines various parameters for the sizing of the network of hydrogen truck charging stations in France in 2030 and 2040, including the average speed of the trucks, maximum daily drive time, autonomy of different types of trucks, tank sizes, capacity of stations, and the total number and percentage of each type of truck.
@@ -70,6 +71,7 @@ The *Parameters_financial* class defines the hydrogen fuel price for 2023, 2030,
 The refueling parameter specifies the time it takes to refuel a hydrogen truck, while *Parameters_filter_stations* includes the maximum distance from a road or logistic hub for a station to be considered for implementation.
 
 2) questions_1.py
+
 This python script contains the code used to creaste functions to preprocess traffic data and calculate the number of hydrogen stations needed for a given scenario year based on the percentage of three brands of trucks. Here is a brief summary of each function:
 
 - grouped_region: This function takes a pandas DataFrame and a shape file as inputs and preprocesses the DataFrame by grouping it by region, summing the total distance of roads, and adding shape file information. It returns a new pandas DataFrame.
@@ -81,6 +83,7 @@ This python script contains the code used to creaste functions to preprocess tra
 - calculate_hydrogen_stations: This function takes the input dataframe with the traffic data for each region and the percentage of three brands of trucks as inputs. It calculates the number of hydrogen stations needed based on several assumptions and constraints and returns a pandas DataFrame with the region and the number of hydrogen stations needed.
 
 3) question_2.py
+
 This python script contains the code used for creating a model to predict Hydrogen demand. The code includes various functions to preprocess data, create new features and calculate distances between points.
 
 - indicate_crs: sets the coordinate reference system (CRS) of a GeoDataFrame.
@@ -91,6 +94,7 @@ station_distances_all: adds columns of the distances between each station.
 distance_to_hub: adds four columns regarding the distances to the closest hubs for each point.
 
 4) financials_part_2.py
+
 This python script contains the code used to simulate the profitability of a network of hydrogen refueling stations for heavy-duty vehicles. The simulation takes into account the cost of building and operating the stations, the traffic flow in the surrounding area, and the price of hydrogen fuel. The output is a recommendation on the optimal number and size of stations to deploy in a given region to achieve profitability.
 
 The simulation is driven by three user-defined parameters: the year of deployment (2023, 2030, or 2040), the total daily demand for hydrogen fuel in the region, and the profitability thresholds for different station sizes. The code also incorporates real-world data on traffic flows, construction times, and station costs to make the simulation as accurate as possible.
@@ -100,6 +104,7 @@ Overall, this code provides a powerful tool for stakeholders interested in deplo
 #### preprocessing
 
 1) helping_functions.py
+
 This python script contains several functions for working with geographic data in Python using the GeoPandas library.
 
 - add_lat_lon_columns(df) adds new columns to a dataframe containing latitude and longitude values based on the 'xD', 'yD', 'xF', and 'yF' columns, which are in Lambert-93 projection.
@@ -111,6 +116,7 @@ This python script contains several functions for working with geographic data i
 - convert_str_geometry_to_geometry_geometry(df) converts a geometry column with geometry shapes written as a string to a geometry shapes column.
 
 2) pre_proccess_stations.py
+
 This python script contains several functions that are used for processing geospatial data related to stations.
 
 -add_lat_lon_columns function takes a dataframe df with columns xD, yD, xF, and yF, which are in Lambert-93 projection, and adds new columns lonD, latD, lonF, and latF with corresponding latitude and longitude values in WGS84 projection (EPSG:4326).
@@ -120,6 +126,7 @@ This python script contains several functions that are used for processing geosp
 - add_region_column function takes a dataframe df with a column dep, which contains department codes, and adds a new column region with the corresponding region names. The mapping of department codes to region names is defined in a dictionary within the function.
 
 3) pre_process_traffic.py
+
 This python script defines two functions to preprocess traffic data.
 - preprocess_data, takes a Pandas DataFrame as input and applies some transformations to it. It fixes an issue with the 'ratio_PL' column where some values are greater than 40, by dividing those values by 10. It then calculates a new column called 'TMJA_PL', which is the product of the 'TMJA' and 'ratio_PL' columns divided by 100, rounded to 2 decimal places. The function then calculates the sum of the 'TMJA_PL' column and uses it to calculate the percentage of traffic in each region, which is saved in a new column called 'percentage_traffic'. The preprocessed DataFrame is then returned.
 
