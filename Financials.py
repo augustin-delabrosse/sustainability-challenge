@@ -114,7 +114,7 @@ def financials(df_station:pd.DataFrame, df_station_info: pd.DataFrame,year: floa
     df_station['EBITDA'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['opex']*1000000)
     df_station['Opex'] = df_station['Revenues'] - df_station['EBITDA']
 
-    df_station_info['yearly_depreciation'] = df_station_info['capex'] * df_station_info['depreciation']
+    df_station_info['yearly_depreciation'] = df_station_info['capex'] * df_station_info['depreciation']*1000000 
     df_station['EBIT'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['yearly_depreciation'])
     df_station['depreciation'] = df_station['EBITDA'] - df_station['EBIT']
 
@@ -126,7 +126,7 @@ def capex(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.DataFrame
     '''
     This function provides an overview of the capex needs for each station
     '''
-    df_station['CAPEX'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['capex'])
+    df_station['CAPEX'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['capex']*1000000)
     return df_station
 
 
