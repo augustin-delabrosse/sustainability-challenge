@@ -99,6 +99,19 @@ def station_distances_all(
 
     return df_stations
 
+def station_distances_station_total(
+        df_stations_total: pd.DataFrame
+):
+    '''
+    Add columns of the distances between each stations 
+    '''
+
+    for i in tqdm(df_stations_total['index']):
+        station_index = df_stations_total.loc[i, 'index']
+        df_stations_total[f'distance_to_stationtotal_{station_index}'] = df_stations_total.loc[i, 'geometry'].distance(df_stations_total['geometry'])
+
+    return df_stations_total
+
 def get_closer_station(
         df_stations_complete: pd.DataFrame
 ):

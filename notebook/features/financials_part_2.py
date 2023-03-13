@@ -73,16 +73,19 @@ def sales(df_station:pd.DataFrame, year: float = 2030)-> pd.DataFrame:
     if year not in h2_price_dict:
         raise ValueError('Year can only be 2023, 2030 or 2040')
     
-    df_station['Quantity_sold_per_day(in kg)'] = total_demand * df_station['percentage_traffic'] *  (1 / df_station.groupby('route')['route'].transform('count'))
+    df_station['percentage_traffic'] = df_station['percentage_traffic'] *  (1 / df_station.groupby('route')['route'].transform('count'))
+    df_station['percentage_traffic'] = df_station['percentage_traffic'] / df_station['percentage_traffic'].sum()
+    
+    df_station['Quantity_sold_per_day(in kg)'] = total_demand * df_station['percentage_traffic']
     df_station['Revenues_day'] = df_station['Quantity_sold_per_day(in kg)']  * h2_price_dict[year]
     return df_station
 
-def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame = df_station_info)-> pd.DataFrame:
+def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.DataFrame:
     '''
     This function derives the station size depending on quantity sold and the profitability thresholds
     '''
     info = threshold(df_station_info)
-    small_prof_threshold, medium_prof_threshold, large_prof_threshold = info['threshold']
+    small_prof_threshold, medium_prof_threshold, large_prof_threshold = info['threshold']*365
     df_station['Quantity_sold_per_year(in kg)']= df_station['Quantity_sold_per_day(in kg)']*365
 
     df_station['not_prof'] = (df_station['Quantity_sold_per_year(in kg)']/1000< small_prof_threshold).astype(int)
@@ -93,7 +96,7 @@ def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame = df_sta
     df_station['medium_station'] = ((df_station['Quantity_sold_per_year(in kg)']/1000 >= medium_prof_threshold) &
                                     (df_station['Quantity_sold_per_year(in kg)']/1000 < large_prof_threshold)).astype(int)
     
-    df_station['large_station'] = (df_station['Quantity_sold_per_year(in kg)']/1000>= large_prof_threshold).astype(int)
+    df_station['large_station'] = (df_station['Quantity_sold_per_year(in kg)']/1000 >= large_prof_threshold).astype(int)
     
     df_station['station_type'] = df_station.apply(lambda row: 
     'not profitable' if row['not_prof'] == 1 
