@@ -76,7 +76,7 @@ def sales(df_station:pd.DataFrame,year: float)-> pd.DataFrame:
     if year not in h2_price_dict:
         raise ValueError('Year can only be 2023, 2030 or 2040')
     
-    #df_station['Quantity_sold_per_day(in kg)'] = total_demand * df_station['percentage_traffic'] *  (1 / df_station.groupby('route_id')['route_id'].transform('count'))
+    df_station['Quantity_sold_per_day(in kg)'] = total_demand * df_station['percentage_traffic'] *  (1 / df_station.groupby('route_id')['route_id'].transform('count'))
     df_station['Revenues_day'] = df_station['Quantity_sold_per_day(in kg)']  * h2_price_dict[year]
     return df_station
 
@@ -85,7 +85,8 @@ def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.Da
     This function derives the station size depending on quantity sold and the profitability thresholds
     '''
     info = threshold(df_station_info)
-    small_prof_threshold, medium_prof_threshold, large_prof_threshold = info['threshold']
+    small_prof_threshold, medium_prof_threshold, large_prof_threshold = info['threshold']*365
+    print (large_prof_threshold)
     df_station['Quantity_sold_per_year(in kg)']= df_station['Quantity_sold_per_day(in kg)']*365
 
     df_station['not_prof'] = (df_station['Quantity_sold_per_year(in kg)']/1000< small_prof_threshold).astype(int)
@@ -96,7 +97,7 @@ def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.Da
     df_station['medium_station'] = ((df_station['Quantity_sold_per_year(in kg)']/1000 >= medium_prof_threshold) &
                                     (df_station['Quantity_sold_per_year(in kg)']/1000 < large_prof_threshold)).astype(int)
     
-    df_station['large_station'] = (df_station['Quantity_sold_per_year(in kg)']/1000>= large_prof_threshold).astype(int)
+    df_station['large_station'] = (df_station['Quantity_sold_per_year(in kg)']/1000 >= large_prof_threshold).astype(int)
     
     df_station['station_type'] = df_station.apply(lambda row: 
     'not profitable' if row['not_prof'] == 1 
@@ -122,7 +123,7 @@ def financials(df_station:pd.DataFrame, df_station_info: pd.DataFrame,year: floa
 
     fin = ['Revenues','EBITDA','EBIT','depreciation','Opex']
     df_station[fin] = df_station[fin].fillna(0)
-    df_station  = df_station.applymap(lambda x: format(x, ',.0f') if isinstance(x, (int, float)) else x)
+    
     return df_station
 
 def capex(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.DataFrame:
@@ -186,16 +187,7 @@ def deployment_dates(df_station: pd.DataFrame, year_start: float, year_end: floa
 
     # Merge the installation dates dataframe with the original dataframe
     merged_df = pd.merge(df_station, date_df, on='geometry')
-    #merged_df = merged_df.applymap(lambda x: format(x, '..0f') if isinstance(x, (int, float)) else x)
     
-    #financials  = ['closest_dense_hub', 'distance_to_closest_dense_hub',
-     #  'closest_elargie_hub', 'distance_to_closest_large_hub', 'TMJA_PL',
-       #'percentage_traffic', 'Quantity_sold_per_day(in kg)', 'Revenues_day',
-       #'Quantity_sold_per_year(in kg)', 'not_prof', 'small_station',
-      # 'medium_station', 'large_station', 'Revenues', 'EBITDA',
-     #  'Opex', 'EBIT', 'depreciation']
-    #merged_df[financials] = pd.to_numeric(merged_df[financials])
-
     return merged_df
 
 
@@ -236,7 +228,7 @@ def deployment_financials(df_station:pd.DataFrame,year_start: float,year_end: fl
         data.append(cumulative_data)
 
     df_cumulative_financials = pd.DataFrame(data, index=years, columns=['Quantity_sold_per_year(in kg)', 'Revenues', 'Opex', 'EBITDA', 'depreciation', 'EBIT', 'small_station', 'medium_station', 'large_station'])
-    df_cumulative_financials = df_cumulative_financials.applymap(lambda x: format(x, ',.0f') if isinstance(x, (int, float)) else x)
+    #df_cumulative_financials = df_cumulative_financials.applymap(lambda x: format(x, ',.0f') if isinstance(x, (int, float)) else x)
 
     return df_cumulative_financials
 
