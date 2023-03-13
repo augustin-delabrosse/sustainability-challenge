@@ -43,9 +43,9 @@ station_info = {
 }
 
 df_station_info = pd.DataFrame(station_info).reset_index(drop=True)
-total_demand = 1110000
+#total_demand = 1110000
 
-def threshold(df_station_info :pd.DataFrame)-> float:
+def threshold(df_station_info :pd.DataFrame = df_station_info)-> float:
     '''
     This functions calculates the necessary amount of sales in T/day to be profitable depending on station's sizes
     '''
@@ -68,25 +68,30 @@ def preprocess_station(df_station: pd.DataFrame,df_tmja: pd.DataFrame) -> pd.Dat
     
     return df_station
 
-def sales(df_station:pd.DataFrame,year: float)-> pd.DataFrame:
+def sales(df_station:pd.DataFrame, year: float)-> pd.DataFrame:
     '''
     This functions calculates the amount sold at each new stations in kg/day.
     '''
     h2_price_dict = {2023: 10, 2030: 7, 2040: 4}
+    total_demands = {2030: 1110000, 2040: 1110000}
+    total_demand = total_demands[year]
+
     if year not in h2_price_dict:
         raise ValueError('Year can only be 2023, 2030 or 2040')
     
-    df_station['Quantity_sold_per_day(in kg)'] = total_demand * df_station['percentage_traffic'] *  (1 / df_station.groupby('route_id')['route_id'].transform('count'))
+    df_station['percentage_traffic'] = df_station['percentage_traffic'] *  (1 / df_station.groupby('route')['route'].transform('count'))
+    df_station['percentage_traffic'] = df_station['percentage_traffic'] / df_station['percentage_traffic'].sum()
+    
+    df_station['Quantity_sold_per_day(in kg)'] = total_demand * df_station['percentage_traffic']
     df_station['Revenues_day'] = df_station['Quantity_sold_per_day(in kg)']  * h2_price_dict[year]
     return df_station
 
-def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.DataFrame:
+def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame = df_station_info)-> pd.DataFrame:
     '''
     This function derives the station size depending on quantity sold and the profitability thresholds
     '''
-    info = threshold(df_station_info)
+    info = threshold()
     small_prof_threshold, medium_prof_threshold, large_prof_threshold = info['threshold']*365
-    print (large_prof_threshold)
     df_station['Quantity_sold_per_year(in kg)']= df_station['Quantity_sold_per_day(in kg)']*365
 
     df_station['not_prof'] = (df_station['Quantity_sold_per_year(in kg)']/1000< small_prof_threshold).astype(int)
@@ -105,14 +110,17 @@ def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.Da
     else 'medium' if row['medium_station'] == 1 
     else 'large' if row['large_station'] == 1 
     else 'unknown', axis=1)
+    df_station.loc[df_station['station_type'] == 'not profitable', 'station_type'] = 'small'
+
     return df_station
 
-def financials(df_station:pd.DataFrame, df_station_info: pd.DataFrame,year: float)-> pd.DataFrame:
+def financials(df_station:pd.DataFrame,year: float, df_station_info: pd.DataFrame)-> pd.DataFrame:
     '''
     This function provides an overview of the P&L for each station
     '''
-    df_station = station_type(df_station, df_station_info)
     df_station = sales(df_station,year)
+    df_station = station_type(df_station, df_station_info)
+    
     df_station['Revenues'] = df_station['Revenues_day'] * 365
     df_station['EBITDA'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['opex']*1000000)
     df_station['Opex'] = df_station['Revenues'] - df_station['EBITDA']
@@ -134,149 +142,17 @@ def capex(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.DataFrame
     return df_station
 
 
-def financial_summary(df_station:pd.DataFrame,df_station_info: pd.DataFrame,year: float) -> pd.DataFrame:
+def financial_summary(df_station:pd.DataFrame,year: float ,df_station_info: pd.DataFrame = df_station_info) -> pd.DataFrame:
     '''
     This function gives the consolidated financials of the deployment of all the stations
     '''
     
-    df_station = financials(df_station, df_station_info,year)
+    df_station = financials(df_station,year, df_station_info)
     df_station = capex(df_station, df_station_info)
 
     summary_df = pd.pivot_table(df_station, values=['CAPEX','Revenues','Opex', 'EBITDA', 'depreciation', 'EBIT'], 
                             index=[],
                             columns=['station_type'], 
                             aggfunc=np.sum, fill_value=0)
-    summary_df  = summary_df.applymap(lambda x: format(x, ',.0f') if isinstance(x, (int, float)) else x)
-    
     
     return summary_df
-
-## Part 3
-
-def deployment_dates(df_station: pd.DataFrame, year_start: float, year_end: float) -> pd.DataFrame:
-    '''
-    This function assigns the year of deployment for each functions depending on its revenue
-    '''
-
-    sorted_df = df_station.sort_values(by='EBITDA', ascending=False)
-    n_stations = len(sorted_df)
-    n_years = year_end - year_start + 1
-
-    # calculate the number of stations to deploy each year
-    n_first_year = math.ceil(n_stations * 0.3)
-    n_remaining_years = n_stations - n_first_year
-    n_stations_per_remaining_year = math.ceil(n_remaining_years / (n_years - 1))
-    n_stations_per_year = [n_first_year] + [n_stations_per_remaining_year] * (n_years - 1)
-
-    # divide the stations into groups for each year
-    groups = []
-    for i in range(n_years):
-        group_size = n_stations_per_year[i]
-        start = sum(n_stations_per_year[:i])
-        end = start + group_size
-        group = sorted_df.iloc[start:end]
-        groups.append(group)
-
-    installation_years = [year_start] + [year_start + i for i in range(1, n_years)]
-    installation_dates = {}
-    for group, year in zip(groups, installation_years):
-        for url in group['geometry']:
-            installation_dates[url] = year
-
-    date_df = pd.DataFrame({'geometry': df_station['geometry'], 'date_installation': [installation_dates.get(s, year_end) for s in df_station['geometry']]})
-
-    # Merge the installation dates dataframe with the original dataframe
-    merged_df = pd.merge(df_station, date_df, on='geometry')
-    
-    return merged_df
-
-
-def scenario_select(df_deployments: pd.DataFrame, percentage: float) -> pd.DataFrame:
-    """
-    This function randomly selects a given percentage of each station each year, and outputs a dataframe with all the randomly selected years.
-
-    """
-    years = df_deployments['date_installation'].unique()
-    
-    selected_years = {}
-    for year in years:
-        year_stations = df_deployments[df_deployments['date_installation'] == year]['geometry']
-        n_select = int(round(percentage * len(year_stations)))
-        selected_stations = random.sample(list(year_stations), n_select)
-        # Store selected years for each station in the dictionary
-        for station in selected_stations:
-            selected_years[station] = year
-
-    selected_years_df = pd.DataFrame.from_dict(selected_years, orient='index', columns=['random_year'])
-    
-    # Merge the selected years dataframe with the original dataframe
-    output_df = pd.merge(df_deployments, selected_years_df, left_on='geometry', right_index=True)
-
-    return output_df
-
-def deployment_financials(df_station:pd.DataFrame,year_start: float,year_end: float)-> pd.DataFrame:
-    '''
-    This functions gives a detail financial overview of the cumulatitve stations metrics
-    
-    '''
-    df_station = deployment_dates(df_station,year_start,year_end)
-    years = sorted(df_station['date_installation'].unique())
-    data = []
-    for i, year in enumerate(years):
-        cumulative_df = df_station[df_station['date_installation'] <= year]
-        cumulative_data = cumulative_df[['Quantity_sold_per_year(in kg)', 'Revenues', 'Opex', 'EBITDA', 'depreciation', 'EBIT', 'small_station', 'medium_station', 'large_station']].sum()
-        data.append(cumulative_data)
-
-    df_cumulative_financials = pd.DataFrame(data, index=years, columns=['Quantity_sold_per_year(in kg)', 'Revenues', 'Opex', 'EBITDA', 'depreciation', 'EBIT', 'small_station', 'medium_station', 'large_station'])
-    #df_cumulative_financials = df_cumulative_financials.applymap(lambda x: format(x, ',.0f') if isinstance(x, (int, float)) else x)
-
-    return df_cumulative_financials
-
-def plotting_installations(df:pd.core.frame.DataFrame):
-    """
-    Plot the installation dates of H2 stations on a map.
-    Parameters:
-        df : DataFrame
-            A DataFrame containing data on H2 stations' installation, including their
-            location and installation date.
-    Returns:
-        A plot of the H2 station locations overlaid on a map, with the color of each
-            station indicating its installation date.
-    """
-
-    if type(df.geometry[:1].values[0]) == str:
-        df = convert_str_geometry_to_geometry_geometry(df)
-        
-    shp_file = gpd.GeoDataFrame(df, crs="epsg:2154")
-    shp_file = shp_file[['URL', 'nom_region', 'geometry', 'closest_road',
-       'closest_large_hub', 'closest_dense_hub', 'TMJA_PL', 'percentage_traffic',
-       'Quantity_sold_per_day(in kg)', 'Revenues', 'bool', 'size',
-       'Quantity_sold_per_year(in kg)', 'station_type', 'Revenues_day',
-       'EBITDA', 'Opex', 'EBIT', 'depreciation', 'date_installation']]
-    
-    exploration = shp_file.explore(column="date_installation", cmap="Blues")
-    
-    return exploration
-
-# Part 4
-# Assumptions from slides
-factory_info = {
-    'station_type': ['small', 'large'],
-    'capex': [20, 120],
-    'depreciation': [0.15,0.15], 
-    'opex': [0.03 * 20, 0.03 * 150],
-    'Power_usage': [55, 50],  # Wh/kgH2 
-    'water_consumption': [10, 10], #L/kgH2
-
-}
-
-df_factory_info = pd.DataFrame(factory_info).reset_index(drop=True)
-Transport_by_truck = 0.008
-# price KWH France, source: https://www.fournisseur-energie.com/prix-kwh/#:~:text=L%27essentiel%20sur%20les%20prix,6%20kVA%2C%20en%20option%20base.
-# price Liter Water, source: https://www.cieau.com/le-metier-de-leau/prix-des-services-deau/#:~:text=le%20prix%20moyen%20des%20services,de%20120%20m3%20consomm%C3%A9s.
-
-kwh_price = 0.2 #euros
-L_price = 0.0037 #euros
-
-#def factory_cost(df_factory_info:pd.DataFrame=df_factory_info)-> pd.DataFrame:
-
