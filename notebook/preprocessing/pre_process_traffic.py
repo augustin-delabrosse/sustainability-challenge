@@ -20,7 +20,6 @@ def preprocess_data(df):
     #Add density
     df['TMJA_PL'] = round((df['TMJA']*(df['ratio_PL']/100)),2)
 
-<<<<<<< HEAD
     # Calculate the sum of the Avg TMJA_PL column
     tmja_sum = df['TMJA_PL'].sum()
 
@@ -29,20 +28,6 @@ def preprocess_data(df):
 
     return df
 
-=======
-    
-    mask = df['TMJA_PL'].notna()
-
-    df = df[mask]
-
-    # Calculate the percentage of traffic in each region
-    df['percentage_traffic'] = df['TMJA_PL'] / df['TMJA_PL'].sum()
-
-    return df
-
-
-
->>>>>>> 35be8ed0f12536271e0c682d9cec9c692aa9f0f6
 def fix_tmja(df):
     """Fixes the 'longueur' and 'ratio_PL' columns of a dataframe, adds latitude and longitude columns,
     and adds 'region' and 'departement' columns based on the latitude and longitude.

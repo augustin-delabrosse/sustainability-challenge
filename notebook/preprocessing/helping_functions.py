@@ -105,8 +105,6 @@ def convert_str_geometry_to_geometry_geometry(df):
 
     df['geometry'] = gpd.GeoSeries.from_wkt(df['geometry'])
     return df
-<<<<<<< HEAD
-=======
 
 def plot_results(roads_shapefile:gpd.geodataframe.GeoDataFrame, df_results:pd.core.frame.DataFrame):
     """
@@ -143,4 +141,3 @@ def plot_results(roads_shapefile:gpd.geodataframe.GeoDataFrame, df_results:pd.co
     exploration = shp_file.explore(column='type', cmap='tab10')
     
     return exploration
->>>>>>> 35be8ed0f12536271e0c682d9cec9c692aa9f0f6
