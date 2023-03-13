@@ -14,6 +14,8 @@ import datetime
 from tqdm import tqdm
 import math
 import random
+from functions.helping_functions import *
+
 # Hydrogen fuel price
 #source: https://www.autonews.fr/green/voiture-hydrogene#:~:text=Quant%20au%20plein%20d%27hydrog%C3%A8ne,diminuer%20avec%20son%20d%C3%A9veloppement%20progressif.
 # source: https://reglobal.co/cost-of-ownership-of-fuel-cell-hydrogen-trucks-in-europe/
@@ -33,7 +35,7 @@ station_info = {
     'station_type': ['small', 'medium', 'large'],
     'capex': [3, 5, 8],
     'depreciation': [0.15,0.15,0.15],
-    'opex': [0.1 * 3, 0.08 * 3, 0.07 * 3],
+    'opex': [0.1 * 3, 0.08 * 5, 0.07 * 8],
     'storage': [2, 3, 4],
     'construction_time': [1, 1, 1],
     'footprint': [650, 900, 1200],
@@ -115,11 +117,12 @@ def financials(df_station:pd.DataFrame, df_station_info: pd.DataFrame,year: floa
     df_station['Opex'] = df_station['Revenues'] - df_station['EBITDA']
 
     df_station_info['yearly_depreciation'] = df_station_info['capex'] * df_station_info['depreciation']*1000000 
-    df_station['EBIT'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['yearly_depreciation'])
-    df_station['depreciation'] = df_station['EBITDA'] - df_station['EBIT']
+    df_station['EBIT'] = df_station['EBITDA']- df_station['station_type'].map(df_station_info.set_index('station_type')['yearly_depreciation'])
+    df_station['depreciation'] =  df_station['EBIT']  - df_station['EBITDA'] 
 
     fin = ['Revenues','EBITDA','EBIT','depreciation','Opex']
     df_station[fin] = df_station[fin].fillna(0)
+    df_station  = df_station.applymap(lambda x: format(x, ',.0f') if isinstance(x, (int, float)) else x)
     return df_station
 
 def capex(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.DataFrame:
@@ -135,36 +138,45 @@ def financial_summary(df_station:pd.DataFrame,df_station_info: pd.DataFrame,year
     This function gives the consolidated financials of the deployment of all the stations
     '''
     
-    df_station = financials(df_station, df_station_info,2030)
+    df_station = financials(df_station, df_station_info,year)
     df_station = capex(df_station, df_station_info)
 
     summary_df = pd.pivot_table(df_station, values=['CAPEX','Revenues','Opex', 'EBITDA', 'depreciation', 'EBIT'], 
                             index=[],
                             columns=['station_type'], 
                             aggfunc=np.sum, fill_value=0)
-    #summary_df.loc['Total'] = summary_df.sum()
+    summary_df  = summary_df.applymap(lambda x: format(x, ',.0f') if isinstance(x, (int, float)) else x)
+    
     
     return summary_df
 
 ## Part 3
 
-def deployment_dates(df_station:pd.DataFrame,year_start: float,year_end: float)-> pd.DataFrame:
+def deployment_dates(df_station: pd.DataFrame, year_start: float, year_end: float) -> pd.DataFrame:
     '''
     This function assigns the year of deployment for each functions depending on its revenue
     '''
-    
-    sorted_df = df_station.sort_values(by='Revenues', ascending=False)
+
+    sorted_df = df_station.sort_values(by='EBITDA', ascending=False)
     n_stations = len(sorted_df)
     n_years = year_end - year_start + 1
-    n_stations_per_group = math.ceil(n_stations / n_years)
+
+    # calculate the number of stations to deploy each year
+    n_first_year = math.ceil(n_stations * 0.3)
+    n_remaining_years = n_stations - n_first_year
+    n_stations_per_remaining_year = math.ceil(n_remaining_years / (n_years - 1))
+    n_stations_per_year = [n_first_year] + [n_stations_per_remaining_year] * (n_years - 1)
+
+    # divide the stations into groups for each year
     groups = []
     for i in range(n_years):
-        start = i * n_stations_per_group
-        end = (i+1) * n_stations_per_group
+        group_size = n_stations_per_year[i]
+        start = sum(n_stations_per_year[:i])
+        end = start + group_size
         group = sorted_df.iloc[start:end]
         groups.append(group)
 
-    installation_years = [year_start + i for i in range(n_years)]
+    installation_years = [year_start] + [year_start + i for i in range(1, n_years)]
     installation_dates = {}
     for group, year in zip(groups, installation_years):
         for url in group['geometry']:
@@ -174,35 +186,18 @@ def deployment_dates(df_station:pd.DataFrame,year_start: float,year_end: float)-
 
     # Merge the installation dates dataframe with the original dataframe
     merged_df = pd.merge(df_station, date_df, on='geometry')
+    #merged_df = merged_df.applymap(lambda x: format(x, '..0f') if isinstance(x, (int, float)) else x)
+    
+    #financials  = ['closest_dense_hub', 'distance_to_closest_dense_hub',
+     #  'closest_elargie_hub', 'distance_to_closest_large_hub', 'TMJA_PL',
+       #'percentage_traffic', 'Quantity_sold_per_day(in kg)', 'Revenues_day',
+       #'Quantity_sold_per_year(in kg)', 'not_prof', 'small_station',
+      # 'medium_station', 'large_station', 'Revenues', 'EBITDA',
+     #  'Opex', 'EBIT', 'depreciation']
+    #merged_df[financials] = pd.to_numeric(merged_df[financials])
 
     return merged_df
 
-def deployment_financials(df_station:pd.DataFrame,year_start: float,year_end: float)-> pd.DataFrame:
- 
-
-    df_station = deployment_dates(df_station,year_start,year_end)
-    years = sorted(df_station['date_installation'].unique())
-
-    data = {}
-
-    for i, year in enumerate(years):
-        prev_years = years[:i+1]
-        cumulative_sales = df_station[df_station['date_installation'].isin(prev_years)]['Quantity_sold_per_year(in kg)'].sum()
-        cumulative_revenues = df_station[df_station['date_installation'].isin(prev_years)]['Revenues'].sum()
-        cumulative_opex = df_station[df_station['date_installation'].isin(prev_years)]['Opex'].sum()
-        cumulative_ebitda = df_station[df_station['date_installation'].isin(prev_years)]['EBITDA'].sum()
-        cumulative_depreciation = df_station[df_station['date_installation'].isin(prev_years)]['depreciation'].sum()
-        cumulative_ebit = df_station[df_station['date_installation'].isin(prev_years)]['EBIT'].sum()
-        small_sation = df_station[df_station['date_installation'].isin(prev_years)]['small_station'].sum()
-        medium_sation = df_station[df_station['date_installation'].isin(prev_years)]['medium_station'].sum()
-        large_sation = df_station[df_station['date_installation'].isin(prev_years)]['large_station'].sum()
-        
-        data[year] = [cumulative_sales,cumulative_revenues,cumulative_opex, cumulative_ebitda,cumulative_depreciation,cumulative_ebit,small_sation,medium_sation,large_sation]
-
-    # Create a dataframe from the data dictionary, with the years as columns and the financial metrics as rows
-    df_cumulative_financials = pd.DataFrame.from_dict(data, orient='index', columns=['sales','revenues','opex' , 'ebitda','depreciation','ebit','small_station','medium_station','large_station'])
-
-    return df_cumulative_financials
 
 def scenario_select(df_deployments: pd.DataFrame, percentage: float) -> pd.DataFrame:
     """
@@ -234,25 +229,14 @@ def deployment_financials(df_station:pd.DataFrame,year_start: float,year_end: fl
     '''
     df_station = deployment_dates(df_station,year_start,year_end)
     years = sorted(df_station['date_installation'].unique())
-
-    data = {}
-
-
+    data = []
     for i, year in enumerate(years):
-        prev_years = years[:i+1]
-        cumulative_sales = df_station[df_station['date_installation'].isin(prev_years)]['Quantity_sold_per_year(in kg)'].sum()
-        cumulative_revenues = df_station[df_station['date_installation'].isin(prev_years)]['Revenues'].sum()
-        cumulative_opex = df_station[df_station['date_installation'].isin(prev_years)]['Opex'].sum()
-        cumulative_ebitda = df_station[df_station['date_installation'].isin(prev_years)]['EBITDA'].sum()
-        cumulative_depreciation = df_station[df_station['date_installation'].isin(prev_years)]['depreciation'].sum()
-        cumulative_ebit = df_station[df_station['date_installation'].isin(prev_years)]['EBIT'].sum()
-        small_sation = df_station[df_station['date_installation'].isin(prev_years)]['small_station'].sum()
-        medium_sation = df_station[df_station['date_installation'].isin(prev_years)]['medium_station'].sum()
-        large_sation = df_station[df_station['date_installation'].isin(prev_years)]['large_station'].sum()
-        
-        data[year] = [cumulative_sales,cumulative_revenues,cumulative_opex, cumulative_ebitda,cumulative_depreciation,cumulative_ebit,small_sation,medium_sation,large_sation]
+        cumulative_df = df_station[df_station['date_installation'] <= year]
+        cumulative_data = cumulative_df[['Quantity_sold_per_year(in kg)', 'Revenues', 'Opex', 'EBITDA', 'depreciation', 'EBIT', 'small_station', 'medium_station', 'large_station']].sum()
+        data.append(cumulative_data)
 
-    df_cumulative_financials = pd.DataFrame.from_dict(data, orient='index', columns=['sales','revenues','opex' , 'ebitda','depreciation','ebit','small_station','medium_station','large_station'])
+    df_cumulative_financials = pd.DataFrame(data, index=years, columns=['Quantity_sold_per_year(in kg)', 'Revenues', 'Opex', 'EBITDA', 'depreciation', 'EBIT', 'small_station', 'medium_station', 'large_station'])
+    df_cumulative_financials = df_cumulative_financials.applymap(lambda x: format(x, ',.0f') if isinstance(x, (int, float)) else x)
 
     return df_cumulative_financials
 
@@ -287,29 +271,20 @@ def plotting_installations(df:pd.core.frame.DataFrame):
 factory_info = {
     'station_type': ['small', 'large'],
     'capex': [20, 120],
-    'depreciation': [0.15,0.15],
+    'depreciation': [0.15,0.15], 
     'opex': [0.03 * 20, 0.03 * 150],
-    'Power_usage': [55, 50],
-    'water_consumption': [10, 10],
+    'Power_usage': [55, 50],  # Wh/kgH2 
+    'water_consumption': [10, 10], #L/kgH2
 
 }
 
 df_factory_info = pd.DataFrame(factory_info).reset_index(drop=True)
 Transport_by_truck = 0.008
+# price KWH France, source: https://www.fournisseur-energie.com/prix-kwh/#:~:text=L%27essentiel%20sur%20les%20prix,6%20kVA%2C%20en%20option%20base.
+# price Liter Water, source: https://www.cieau.com/le-metier-de-leau/prix-des-services-deau/#:~:text=le%20prix%20moyen%20des%20services,de%20120%20m3%20consomm%C3%A9s.
 
+kwh_price = 0.2 #euros
+L_price = 0.0037 #euros
 
+#def factory_cost(df_factory_info:pd.DataFrame=df_factory_info)-> pd.DataFrame:
 
-
-
-
-
-
-#results = pd.read_csv(r"C:\Users\cesar\Dropbox\My PC (LAPTOP-GU3S2J8B)\Downloads\results.csv")
-
-#results  = financials(results, df_station_info,2030)
-
-#results = deployment_dates(results,2030,2045)
-#b = sales(results,2030)
-#b = financial_summary(results,df_station_info,2040)
-
-#print(b)
