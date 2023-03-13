@@ -95,7 +95,11 @@ def station_distances_all(
 
     for i in tqdm(df_stations['index']):
         station_index = df_stations.loc[i, 'index']
+<<<<<<< HEAD
         df_stations[f'distance_to_point_{station_index}'] = df_stations.loc[i, 'geometry'].distance(df_stations.geometry)
+=======
+        df_stations[f'distance_to_point_{station_index}'] = df_stations.loc[i, 'geometry'].distance(df_stations['geometry'])
+>>>>>>> 35be8ed0f12536271e0c682d9cec9c692aa9f0f6
 
     return df_stations
 
