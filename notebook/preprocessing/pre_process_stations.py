@@ -39,8 +39,6 @@ def add_lat_lon_columns(df):
 
     return df
 
-
-
 def indicate_crs(shp_file: gpd.geodataframe.GeoDataFrame, epsg:str):
     """Sets the coordinate reference system (CRS) of a GeoDataFrame.
 
@@ -238,3 +236,14 @@ def filter_stations(
     df_stations = df_stations[df_stations['distance_to_closest_large_hub']<=max_dist_hub]
 
     return df_stations
+
+def create_region_columns(
+        df: gpd.GeoDataFrame,
+        data_region: gpd.GeoDataFrame
+):
+    data_region['geometry'] = data_region['geometry'].to_crs('epsg:2154')
+
+    for i,region_name in enumerate(data_region['nom']):
+        df[region_name] = data_region.loc[i,'geometry'].contains(df['geometry'])
+
+    return df

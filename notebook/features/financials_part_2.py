@@ -41,7 +41,7 @@ station_info = {
 }
 
 df_station_info = pd.DataFrame(station_info).reset_index(drop=True)
-total_demand = 1110000
+
 
 def threshold(df_station_info :pd.DataFrame = df_station_info)-> float:
     '''
@@ -49,9 +49,6 @@ def threshold(df_station_info :pd.DataFrame = df_station_info)-> float:
     '''
     df_station_info['threshold'] = df_station_info['prof_threshold']* df_station_info['storage']
     return df_station_info
-# Calculate Demand
-
-
 
 def preprocess_station(df_station: pd.DataFrame, df_tmja: pd.DataFrame) -> pd.DataFrame:
     '''
@@ -62,7 +59,6 @@ def preprocess_station(df_station: pd.DataFrame, df_tmja: pd.DataFrame) -> pd.Da
     df_tmja_group['route'] = df_tmja_group.index
     df_tmja_group = df_tmja_group.reset_index(drop=True)
     df_station['route'] = df_tmja.iloc[df_station['Closer_route_by_index']]['route'].iloc[0]
-    df_station_1 = pd.merge(df_station, df_tmja_group, on='route',how ='left')
     
     return df_station
 
@@ -71,10 +67,13 @@ def sales(df_station:pd.DataFrame, year: float = 2030)-> pd.DataFrame:
     This functions calculates the amount sold at each new stations in kg/day.
     '''
     h2_price_dict = {2023: 10, 2030: 7, 2040: 4}
+    total_demands = {2030: 1110000, 2040: 6*1110000}
+    total_demand = total_demands[year]
+
     if year not in h2_price_dict:
         raise ValueError('Year can only be 2023, 2030 or 2040')
     
-    #df_station['Quantity_sold_per_day(in kg)'] = total_demand * df_station['percentage_traffic'] *  (1 / df_station.groupby('route_id')['route_id'].transform('count'))
+    df_station['Quantity_sold_per_day(in kg)'] = total_demand * df_station['percentage_traffic'] *  (1 / df_station.groupby('route')['route'].transform('count'))
     df_station['Revenues_day'] = df_station['Quantity_sold_per_day(in kg)']  * h2_price_dict[year]
     return df_station
 

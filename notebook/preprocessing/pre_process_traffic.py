@@ -20,7 +20,6 @@ def preprocess_data(df):
     #Add density
     df['TMJA_PL'] = round((df['TMJA']*(df['ratio_PL']/100)),2)
 
-    
     mask = df['TMJA_PL'].notna()
 
     df = df[mask]
