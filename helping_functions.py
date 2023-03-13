@@ -449,3 +449,51 @@ def plot_clusters_(productions_sites, routes, stations, cmap:str="gist_ncar"):
     exploration = shp_file.explore(column='nom', cmap=cmap)
     
     return exploration
+
+
+def production_sites_plants_function(df:pd.core.frame.DataFrame):
+    """
+    Calculates the number of production sites required to meet the hydrogen demand
+    for each cluster based on the cluster size and the daily hydrogen demand.
+
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The DataFrame containing information on the clusters, including their size
+        and hydrogen demand.
+
+    Returns:
+    --------
+    productions_site_by_cluster : dict
+        A dictionary where the keys are the cluster indices and the values are
+        dictionaries containing the number of small and large production sites
+        required to meet the hydrogen demand for the cluster.
+    """
+    df['tpd'] = df.taille.apply(lambda x: 4 if x=="large" else (2 if x=="medium" else 1))
+
+    t_per_day_by_cluster = {}
+    for i in range(df.cluster.unique().max()+1):
+        cluster = df[df['cluster'] == i]
+        demand = cluster.tpd.sum()
+        t_per_day_by_cluster[i] = demand
+
+
+    productions_site_by_cluster = {}
+    for i, t in t_per_day_by_cluster.items():
+        # print(f'cluster {i}', t)
+        productions_site_by_cluster[i] = {}
+        n=1
+        while n*factory_info['h2_production_per_day'][-1] < t:
+            n+=1
+            # print(n, n*factory_info['h2_production_per_day'][-1])
+        # print('')
+
+        base_t = (n-1)*48
+        if np.ceil((t-base_t)/2.181)*s_opex > np.ceil((t-base_t)/48)*l_opex:
+            productions_site_by_cluster[i]['small'] = 0 # (n-1) + np.ceil((t-base_t)/2.181)
+            productions_site_by_cluster[i]['large'] = n
+        else:
+            productions_site_by_cluster[i]['small'] = np.ceil((t-base_t)/2.181)
+            productions_site_by_cluster[i]['large'] = n-1
+    
+    return productions_site_by_cluster
