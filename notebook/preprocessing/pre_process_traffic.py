@@ -20,18 +20,12 @@ def preprocess_data(df):
     #Add density
     df['TMJA_PL'] = round((df['TMJA']*(df['ratio_PL']/100)),2)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
     # Calculate the sum of the Avg TMJA_PL column
     tmja_sum = df['TMJA_PL'].sum()
-<<<<<<< HEAD
-=======
-=======
+
     mask = df['TMJA_PL'].notna()
 
     df = df[mask]
->>>>>>> 62020b4594d1bdae54151283ba5707bda08a2fd4
->>>>>>> parent of 82cde4d (fix bug)
 
     # Calculate the percentage of traffic in each region
     df['percentage_traffic'] = round(df['TMJA_PL'] / tmja_sum, 2)
