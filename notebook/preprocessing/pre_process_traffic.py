@@ -21,6 +21,7 @@ def preprocess_data(df):
     df['TMJA_PL'] = round((df['TMJA']*(df['ratio_PL']/100)),2)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     # Calculate the sum of the Avg TMJA_PL column
     tmja_sum = df['TMJA_PL'].sum()
 <<<<<<< HEAD
