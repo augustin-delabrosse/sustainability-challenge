@@ -26,79 +26,129 @@ from models.question_2 import *
 from models.genetic_algorithm_part3_1 import *
 
 
-def clustering_of_stations(results:pd.core.frame.DataFrame, k_max:int=40) -> dict:
+def size_of_production_sites_by_cluster(df:pd.core.frame.DataFrame):
     """
-    Perform k-means clustering on the given data and return the results.
-    Args:
-    - results: a pandas DataFrame containing the data to be clustered, with columns 'easting' and 'northing'.
-    - k_max: an integer specifying the maximum number of clusters to consider.
+    Calculates the number of production sites required to meet the hydrogen demand
+    for each cluster based on the cluster size and the daily hydrogen demand.
+
+    Parameters:
+    -----------
+    df : pandas DataFrame
+        The DataFrame containing information on the clusters, including their size
+        and hydrogen demand.
+
     Returns:
-    A dictionary containing the clustering results for each value of k between 2 and k_max, inclusive.
-    The dictionary has keys representing the number of clusters (k), and values representing the clustering results.
-    The clustering results are themselves dictionaries with the following keys:
-    - 'inertia': the sum of squared distances of samples to their closest cluster center.
-    - 'silhouette': a measure of how similar an object is to its own cluster compared to other clusters.
-    - 'labels': the labels of each point in the input data after clustering.
-    - 'centroids': the coordinates of the cluster centers.
+    --------
+    productions_site_by_cluster : dict
+        A dictionary where the keys are the cluster indices and the values are
+        dictionaries containing the number of small and large production sites
+        required to meet the hydrogen demand for the cluster.
     """
-
-    results_to_cluster = results[['easting', "northing"]]
-    result_of_clustering = {}
-    K = range(2, k_max)
-    for k in tqdm(K):
-        result_of_clustering[k] = {}
-        kmeanModel = KMeans(n_clusters=k)
-        kmeanModel.fit(results_to_cluster)
-        result_of_clustering[k]['inertia'] = kmeanModel.inertia_
-        result_of_clustering[k]['silhouette'] = silhouette_score(results_to_cluster, kmeanModel.labels_)
-        result_of_clustering[k]['labels'] = kmeanModel.labels_
-        result_of_clustering[k]['centroids'] = kmeanModel.cluster_centers_
     
-    _, (ax1, ax2) = plt.subplots(2, 1, figsize=(20,16))
+    factory_info = {
+        "MW": [5, 100],
+        'station_type': ['small', 'large'],
+        'capex': [20, 120],
+        'depreciation': [0.15,0.15], 
+        'opex': [0.03 * 20, 0.03 * 120],
+        'Power_usage': [55, 50],  # Wh/kgH2 
+        'water_consumption': [10, 10], #L/kgH2
+        'h2_production_per_day': [2.181, 48]
+        }
+    
+    df['tpd'] = df.taille.apply(lambda x: 4 if x=="large" else (2 if x=="medium" else 1))
 
-    ax1.plot(K, [i["inertia"] for i in result_of_clustering.values()], 'bx-')
+    t_per_day_by_cluster = {}
+    for i in range(df.cluster.unique().max()+1):
+        cluster = df[df['cluster'] == i]
+        demand = cluster.tpd.sum()
+        t_per_day_by_cluster[i] = demand
 
-    ax2.plot(K, [i["silhouette"] for i in result_of_clustering.values()], 'bx-')
 
-    ax1.set_title('Finding the optimal k', {'fontsize':30})
-    ax1.set_ylabel('Inertia')
-    ax2.set_ylabel('Silhouette score')
+    productions_site_by_cluster = {}
+    for i, t in t_per_day_by_cluster.items():
+        # print(f'cluster {i}', t)
+        productions_site_by_cluster[i] = {}
+        n=1
+        while n*factory_info['h2_production_per_day'][-1] < t:
+            n+=1
+            # print(n, n*factory_info['h2_production_per_day'][-1])
+        # print('')
 
-    plt.show()
+        base_t = (n-1)*48
+        if np.ceil((t-base_t)/2.181)*factory_info['opex'][0] > np.ceil((t-base_t)/48)*factory_info['opex'][-1]:
+            productions_site_by_cluster[i]['small'] = 0 # (n-1) + np.ceil((t-base_t)/2.181)
+            productions_site_by_cluster[i]['large'] = n
+        else:
+            productions_site_by_cluster[i]['small'] = np.ceil((t-base_t)/2.181)
+            productions_site_by_cluster[i]['large'] = n-1
+    
+    return productions_site_by_cluster
 
-    return result_of_clustering 
 
-def plot_clusters_(productions_sites, routes, stations, cmap:str="gist_ncar"):
+def production_sites_localization(productions_site_by_cluster: dict, clusters):
     """
-    Plot the given production sites, routes, and clustered stations on a map.
+    Compute the locations of hydrogen production sites given the number of small and large production sites
+    in each cluster and the clusters' geometries.
+
     Args:
-    - production_sites: a geopandas GeoDataFrame containing the locations of production sites.
-    - routes: a geopandas GeoDataFrame containing the routes.
-    - stations: a geopandas GeoDataFrame containing the locations of stations clustered by k-means (it needs a column called 'cluster').
-    - cmap: a string specifying the name of the matplotlib colormap to use for coloring the map.
+        productions_site_by_cluster (dict): A dictionary containing the number of small and large hydrogen 
+            production sites in each cluster.
+        clusters (gpd.GeoDataFrame): A GeoDataFrame representing the clusters in which the hydrogen production 
+            sites are located, with one row per cluster and a geometry column containing the polygon representing 
+            the cluster.
+
     Returns:
-    A holoviews Layout object containing the plotted map.
+        gpd.GeoDataFrame: A GeoDataFrame containing the locations and names of the hydrogen production 
+            sites, with one row per site.
     """
-    shp_production_sites = gpd.GeoDataFrame({'geometry': productions_sites.geometry, 
-                                         'nom': [f'{i+1}th production site' for i in range(productions_sites.shape[0])]}, 
-                                        crs="epsg:2154")
-    
-    shp_routes = gpd.GeoDataFrame({'geometry': routes.geometry, 
-                                         'nom': ['0 route' for i in range(routes.shape[0])]}, 
-                                        crs="epsg:2154")
-    
-    shp_file = pd.concat([shp_routes, shp_production_sites])
 
-    mask = shp_file['nom'] != "0 route"
-    shp_file.loc[mask, 'geometry'] = shp_file.loc[mask, 'geometry'].apply(lambda x: x.buffer(50000))
+    productions_site_locations = {}
+    for i in productions_site_by_cluster.keys():
+        n_small_large = [*productions_site_by_cluster[i].values()]
+        if np.sum(n_small_large) == 1:
+            productions_site_locations[i] = [clusters.at[i, 'geometry']]
+        else:
+            new_geom = clusters.at[i, 'geometry'].buffer(30000)
+            perimeter_length = new_geom.length
+            n_splits = np.sum(n_small_large)
+            distance_between_points = perimeter_length / n_splits
+            cumulative_distance = 0
+            cluster_points = []
+            for idx, vertex in enumerate(new_geom.exterior.coords[:-1]):
+                if idx == 0:
+                    cluster_points.append(Point(vertex))
+                    continue
+                previous_vertex = new_geom.exterior.coords[idx-1]
+                segment_length = Point(vertex).distance(Point(previous_vertex))
+                cumulative_distance += segment_length
+                if cumulative_distance >= distance_between_points:
+                    distance_from_previous = cumulative_distance - distance_between_points
+                    interpolation_factor = distance_from_previous / segment_length
+                    new_point = Point(
+                        previous_vertex[0] + interpolation_factor * (vertex[0] - previous_vertex[0]),
+                        previous_vertex[1] + interpolation_factor * (vertex[1] - previous_vertex[1])
+                    )
+                    cluster_points.append(new_point)
+                    cumulative_distance = distance_from_previous
 
-
-    shp_stations = gpd.GeoDataFrame({'geometry': stations.geometry, 
-                                         'nom': [f'{i+1}th cluster of stations' for i in stations.cluster]}, 
-                                        crs="epsg:2154")
+            productions_site_locations[i] = cluster_points
     
-    shp_file = pd.concat([shp_file, shp_stations])
+    points = [item for sublist in [*productions_site_locations.values()] for item in sublist]
+    sizes = []
+    for value in productions_site_by_cluster.values():
+        for idx, i in enumerate(value.values()):
+            if idx == 0:
+                for j in range(int(i)):
+                    sizes.append('small')
+            else:
+                for j in range(int(i)):
+                    sizes.append('large')
+                    
+    shp_production_sites = gpd.GeoDataFrame({'geometry': points, 
+                                             'nom': [f'{i} H2 production plant' for i in sizes]}, 
+                                            crs="epsg:2154")
     
-    exploration = shp_file.explore(column='nom', cmap=cmap)
+    exploration = shp_production_sites.explore(column='nom', cmap="rainbow")
     
-    return exploration
+    return shp_production_sites, exploration
