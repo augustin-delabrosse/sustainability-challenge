@@ -6,58 +6,6 @@ from shapely.geometry import Point
 from shapely.geometry import LineString
 from features.config import *
 
-def add_lat_lon_columns(df):
-    """
-    Adds new columns 'lonD', 'latD', 'lonF', 'latF' to the dataframe with
-    corresponding latitude and longitude values based on the 'xD', 'yD', 'xF',
-    and 'yF' columns, which are in Lambert-93 projection.
-    Parameters:
-    -----------
-    df : pandas.DataFrame
-        The dataframe containing the columns 'xD', 'yD', 'xF', and 'yF'.
-        
-    Returns:
-    --------
-    pandas.DataFrame
-        The original dataframe with the new 'lonD', 'latD', 'lonF', and 'latF'
-        columns added.
-    """
-    # Define the input and output projections
-    in_proj = pyproj.Proj(init='epsg:2154')  # Lambert-93
-    out_proj = pyproj.Proj(init='epsg:4326')  # WGS84
-
-    df['xD'] = df['xD'].replace(',', '.')
-    df['yD'] = df['yD'].replace(',', '.')
-    df['xF'] = df['xF'].replace(',', '.')
-    df['yF'] = df['yF'].replace(',', '.')
-
-    # Convert start coordinates to lat-long
-    df['lonD'], df['latD'] = pyproj.transform(in_proj, out_proj, df['xD'], df['yD'])
-
-    # Convert end coordinates to lat-long
-    df['lonF'], df['latF'] = pyproj.transform(in_proj, out_proj, df['xF'], df['yF'])
-
-    return df
-
-def indicate_crs(shp_file: gpd.geodataframe.GeoDataFrame, epsg:str):
-    """Sets the coordinate reference system (CRS) of a GeoDataFrame.
-
-    Parameters:
-    -----------
-    shp_file : gpd.geodataframe.GeoDataFrame
-        The GeoDataFrame to set the CRS for.
-    epsg : str
-        The EPSG code for the target CRS.
-
-    Returns:
-    --------
-    gpd.geodataframe.GeoDataFrame
-        The GeoDataFrame with the CRS set."""
-
-    shp_file.set_crs(epsg, allow_override=True)
-    return shp_file
-
-
 def add_region_column(df):
     # Create a dictionary mapping department codes to regions
     dep_to_region = {

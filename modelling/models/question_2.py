@@ -9,7 +9,7 @@ from preprocessing.helping_functions import *
 from preprocessing.pre_process_stations import *
 from preprocessing.pre_process_traffic import *
 
-from features.financials_part_2 import *
+from features.question_2_financials import *
 from features.config import *
 
 
@@ -100,7 +100,8 @@ def station_distances_all(
     return df_stations
 
 def station_distances_station_total(
-        df_stations_total: pd.DataFrame
+        df_stations_total: pd.DataFrame,
+        df_stations: pd.DataFrame
 ):
     '''
     Add columns of the distances between each stations 
@@ -108,9 +109,9 @@ def station_distances_station_total(
 
     for i in tqdm(df_stations_total['index']):
         station_index = df_stations_total.loc[i, 'index']
-        df_stations_total[f'distance_to_stationtotal_{station_index}'] = df_stations_total.loc[i, 'geometry'].distance(df_stations_total['geometry'])
+        df_stations[f'distance_to_stationtotal_{station_index}'] = df_stations_total.loc[i, 'geometry'].distance(df_stations['geometry'])
 
-    return df_stations_total
+    return df_stations
 
 def get_closer_station(
         df_stations_complete: pd.DataFrame
@@ -123,6 +124,18 @@ def get_closer_station(
     df_stations_complete['distance_closer_station'] = df_stations_complete[columns_distance].apply(lambda x: min(x[x!=0]), axis=1)
 
     return df_stations_complete
+
+def get_closer_station_total(
+        df_stations_total: pd.DataFrame
+):
+    '''
+    Create a columns distance_closer_station_total with the smaller distance between each total stations in H2 conversion
+    '''
+    
+    columns_distance = [x for x in df_stations_total.columns if x.startswith('distance_to_stationtotal_')==True]
+    df_stations_total['distance_closer_station_total'] = df_stations_total[columns_distance].apply(lambda x: min(x[x!=0]), axis=1)
+
+    return df_stations_total
 
 def distance_to_hub(
         hub_denses: pd.DataFrame,

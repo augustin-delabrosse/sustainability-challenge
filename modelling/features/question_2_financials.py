@@ -14,6 +14,7 @@ import datetime
 from tqdm import tqdm
 import math
 import random
+
 # Hydrogen fuel price
 #source: https://www.autonews.fr/green/voiture-hydrogene#:~:text=Quant%20au%20plein%20d%27hydrog%C3%A8ne,diminuer%20avec%20son%20d%C3%A9veloppement%20progressif.
 # source: https://reglobal.co/cost-of-ownership-of-fuel-cell-hydrogen-trucks-in-europe/
@@ -62,30 +63,31 @@ def preprocess_station(df_station: pd.DataFrame, df_tmja: pd.DataFrame) -> pd.Da
     
     return df_station
 
-def sales(df_station:pd.DataFrame, year: float = 2030)-> pd.DataFrame:
+def sales(df_station:pd.DataFrame, year: float)-> pd.DataFrame:
     '''
     This functions calculates the amount sold at each new stations in kg/day.
     '''
-    h2_price_dict = {2023: 10, 2030: 7, 2040: 4}
+    h2_price_dict = {2023: 7, 2030: 3, 2040: 1.5}
     total_demands = {2030: 1110000, 2040: 6*1110000}
     total_demand = total_demands[year]
 
     if year not in h2_price_dict:
         raise ValueError('Year can only be 2023, 2030 or 2040')
     
-    df_station['percentage_traffic'] = df_station['percentage_traffic'] *  (1 / df_station.groupby('route')['route'].transform('count'))
-    df_station['percentage_traffic'] = df_station['percentage_traffic'] / df_station['percentage_traffic'].sum()
+    df_station['percentage_traffic'] = df_station['TMJA_PL'] / df_station['TMJA_PL'].sum()
     
-    df_station['Quantity_sold_per_day(in kg)'] = total_demand * df_station['percentage_traffic']
+    df_station['Quantity_sold_per_day(in kg)'] = total_demand * df_station['percentage_traffic'] 
     df_station['Revenues_day'] = df_station['Quantity_sold_per_day(in kg)']  * h2_price_dict[year]
+    
     return df_station
 
-def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.DataFrame:
+def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame = df_station_info)-> pd.DataFrame:
     '''
     This function derives the station size depending on quantity sold and the profitability thresholds
     '''
     info = threshold(df_station_info)
     small_prof_threshold, medium_prof_threshold, large_prof_threshold = info['threshold']*365
+    print (large_prof_threshold)
     df_station['Quantity_sold_per_year(in kg)']= df_station['Quantity_sold_per_day(in kg)']*365
 
     df_station['not_prof'] = (df_station['Quantity_sold_per_year(in kg)']/1000< small_prof_threshold).astype(int)
@@ -106,7 +108,7 @@ def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame)-> pd.Da
     else 'unknown', axis=1)
     return df_station
 
-def financials(df_station:pd.DataFrame, df_station_info: pd.DataFrame = df_station_info, year: float = 2030)-> pd.DataFrame:
+def financials(df_station:pd.DataFrame, year: float, df_station_info: pd.DataFrame = df_station_info)-> pd.DataFrame:
     '''
     This function provides an overview of the P&L for each station
     '''
@@ -117,11 +119,12 @@ def financials(df_station:pd.DataFrame, df_station_info: pd.DataFrame = df_stati
     df_station['Opex'] = df_station['Revenues'] - df_station['EBITDA']
 
     df_station_info['yearly_depreciation'] = df_station_info['capex'] * df_station_info['depreciation']*1000000 
-    df_station['EBIT'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['yearly_depreciation'])
-    df_station['depreciation'] = df_station['EBITDA'] - df_station['EBIT']
+    df_station['EBIT'] = df_station['EBITDA']- df_station['station_type'].map(df_station_info.set_index('station_type')['yearly_depreciation'])
+    df_station['depreciation'] =  df_station['EBIT']  - df_station['EBITDA'] 
 
     fin = ['Revenues','EBITDA','EBIT','depreciation','Opex']
     df_station[fin] = df_station[fin].fillna(0)
+    
     return df_station
 
 def capex(df_station:pd.DataFrame, df_station_info: pd.DataFrame = df_station_info)-> pd.DataFrame:
@@ -132,18 +135,19 @@ def capex(df_station:pd.DataFrame, df_station_info: pd.DataFrame = df_station_in
     return df_station
 
 
-def financial_summary(df_station:pd.DataFrame, df_station_info: pd.DataFrame = df_station_info, year: float = 2030) -> pd.DataFrame:
+def financial_summary(df_station:pd.DataFrame, year: float, df_station_info: pd.DataFrame = df_station_info) -> pd.DataFrame:
     '''
     This function gives the consolidated financials of the deployment of all the stations
     '''
     
-    df_station = financials(df_station, df_station_info,2030)
+    df_station = financials(df_station, df_station_info,year)
     df_station = capex(df_station, df_station_info)
 
     summary_df = pd.pivot_table(df_station, values=['CAPEX','Revenues','Opex', 'EBITDA', 'depreciation', 'EBIT'], 
                             index=[],
                             columns=['station_type'], 
                             aggfunc=np.sum, fill_value=0)
-    summary_df.loc['Total'] = summary_df.sum()
+    summary_df  = summary_df.applymap(lambda x: format(x, ',.0f') if isinstance(x, (int, float)) else x)
+    
     
     return summary_df
