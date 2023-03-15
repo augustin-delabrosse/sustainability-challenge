@@ -26,20 +26,31 @@ You should be at the source of the repository structure (ie. sustainability-chal
 Our repository is structured in the following way:
 ​
 ```
-|endlessline_eleven
+|sustainability-challenge
    |--data
-   |--notebooks
+   |--modelling
    |-----features
    |--------config.py
-   |--------question_1.py
-   |--------question2.py
-   |--------financials_part2.py
+   |--------financials.py
+   |--------maps.py
    |-----preprocessing
    |--------helping_functions.py
+   |--------load_datasets.py
    |--------pre-process_stations.py
    |--------pre-process_traffic.py
+   |-----models
+   |--------question_1.py
+   |--------question_2.py
+   |--------question_3.py
+   |--------question_3_genetic_algorithm.py
+   |--------question_4.py
+   |-----results
    |-----Notebook_genetic_algorithm
-   |-----Notebook_part_1
+   |-----Notebook_question_1
+   |-----Notebook_question_2
+   |-----Notebook_question_3
+   |-----Notebook_question_4
+   |--webapp
    |--README.md
    |--requirements.txt
    |--.gitignore
@@ -47,14 +58,9 @@ Our repository is structured in the following way:
 
 ### data 
 
-To properly get the data, one has to download it locally on his/her computer, unzip and put the folder in the repository. One should have a folder like data/ with 5 different elements:
-- E-tmja2019-shp
-- F-aire-logistique-donees-detaillees
-- new-coordinates
-- regions-20180101-shp
-- E-tmja-2019.csv
+To properly get the data, one has to download it locally on his/her computer, unzip and put the folder in the repository.
 
-### Notebooks
+### modelling
 
 #### features
 
@@ -70,30 +76,7 @@ The *Parameters_financial* class defines the hydrogen fuel price for 2023, 2030,
 
 The refueling parameter specifies the time it takes to refuel a hydrogen truck, while *Parameters_filter_stations* includes the maximum distance from a road or logistic hub for a station to be considered for implementation.
 
-2) questions_1.py
-
-This python script contains the code used to creaste functions to preprocess traffic data and calculate the number of hydrogen stations needed for a given scenario year based on the percentage of three brands of trucks. Here is a brief summary of each function:
-
-- grouped_region: This function takes a pandas DataFrame and a shape file as inputs and preprocesses the DataFrame by grouping it by region, summing the total distance of roads, and adding shape file information. It returns a new pandas DataFrame.
-
-- distance_road_region: This function takes a path to an Excel file and loads the DataFrame from the "REG" sheet. It then sums the total distance of National and Autoroute roads and returns a pandas DataFrame.
-
-- create_part1_data: This function takes a path to an Excel file and a previously processed region DataFrame as inputs. It merges the two DataFrames to have the AVG TMJA_PL and calculates the percentage of traffic in each region. It returns a pandas DataFrame.
-
-- calculate_hydrogen_stations: This function takes the input dataframe with the traffic data for each region and the percentage of three brands of trucks as inputs. It calculates the number of hydrogen stations needed based on several assumptions and constraints and returns a pandas DataFrame with the region and the number of hydrogen stations needed.
-
-3) question_2.py
-
-This python script contains the code used for creating a model to predict Hydrogen demand. The code includes various functions to preprocess data, create new features and calculate distances between points.
-
-- indicate_crs: sets the coordinate reference system (CRS) of a GeoDataFrame.
-- fix_stations: fixes some formatting issues in the Coordinates column of a DataFrame.
-- new_coordinates_creation: creates new coordinates along a route by splitting the route into equal length segments and interpolating new points along each segment.
-station_distances_all: adds columns of the distances between each station.
-- get_closer_station: creates a column distance_closer_station with the smaller distance between each station.
-distance_to_hub: adds four columns regarding the distances to the closest hubs for each point.
-
-4) financials_part_2.py
+2) financials.py
 
 This python script contains the code used to simulate the profitability of a network of hydrogen refueling stations for heavy-duty vehicles. The simulation takes into account the cost of building and operating the stations, the traffic flow in the surrounding area, and the price of hydrogen fuel. The output is a recommendation on the optimal number and size of stations to deploy in a given region to achieve profitability.
 
@@ -132,13 +115,71 @@ This python script defines two functions to preprocess traffic data.
 
 - fix_tmja, takes a Pandas DataFrame as input and applies some transformations to it. It fixes the 'ratio_PL' column by dividing values greater than 40 by 10. It then adds latitude and longitude columns using a helper function called add_lat_lon_columns, and adds 'region' and 'departement' columns based on the latitude and longitude using the reverse_geocoder library. The resulting DataFrame is returned.
 
-#### Notebook Part 1
+4) load_datasets.py
 
-This notebook is used for all the analysis related to the part 1 of the project- sizing the hydrogen truck market in France and in Europe over the next couple of years.
+This Python script includes functions for loading and preprocessing data, defining features, and running models.
 
-#### Notebook Genetic Algorithm
+- load_data(), loads various geographical datasets such as new coordinates, hub data, and traffic data. The function then performs some preprocessing tasks on the data.
 
-This notebook cotains all of the analysis related to the part 2 of the project. using Genetic Algotithms we identified the exact locations where the hydrogen stations should be implemented. 
+- load_red_player_stations(), loads a specific dataset of hydrogen (H2) fueling stations for the red player competitor. 
+
+
+#### models
+
+1) questions_1.py
+
+This python script contains the code used to creaste functions to preprocess traffic data and calculate the number of hydrogen stations needed for a given scenario year based on the percentage of three brands of trucks. Here is a brief summary of each function:
+
+- grouped_region: This function takes a pandas DataFrame and a shape file as inputs and preprocesses the DataFrame by grouping it by region, summing the total distance of roads, and adding shape file information. It returns a new pandas DataFrame.
+
+- distance_road_region: This function takes a path to an Excel file and loads the DataFrame from the "REG" sheet. It then sums the total distance of National and Autoroute roads and returns a pandas DataFrame.
+
+- create_part1_data: This function takes a path to an Excel file and a previously processed region DataFrame as inputs. It merges the two DataFrames to have the AVG TMJA_PL and calculates the percentage of traffic in each region. It returns a pandas DataFrame.
+
+- calculate_hydrogen_stations: This function takes the input dataframe with the traffic data for each region and the percentage of three brands of trucks as inputs. It calculates the number of hydrogen stations needed based on several assumptions and constraints and returns a pandas DataFrame with the region and the number of hydrogen stations needed.
+
+2) question_2.py
+
+This python script contains the code used for creating a model to predict Hydrogen demand. The code includes various functions to preprocess data, create new features and calculate distances between points.
+
+- indicate_crs: sets the coordinate reference system (CRS) of a GeoDataFrame.
+- fix_stations: fixes some formatting issues in the Coordinates column of a DataFrame.
+- new_coordinates_creation: creates new coordinates along a route by splitting the route into equal length segments and interpolating new points along each segment.
+- station_distances_all: adds columns of the distances between each station.
+- get_closer_station: creates a column distance_closer_station with the smaller distance between each station.
+- distance_to_hub: adds four columns regarding the distances to the closest hubs for each point.
+
+3) question_3.py
+
+This Python script contains various functions helpful to answer part 3 of the project.
+
+- deployment_dates: assigns the year of deployment for each station depending on its revenue.
+- deployment_financials: gives a detailed financial overview of the cumulative stations metrics.
+- scenario_2: randomly selects a given percentage of each station each year and outputs a dataframe with all the randomly selected years.
+
+4) question_3_genetic_algorithm.py
+
+This Python script contains the genetic algorithm implementation to optimize the placement of hydrogen refueling stations for hydrogen fuel trucks in different regions in France.
+
+- genetic_algorithm: takes a GeoDataFrame of hydrogen refueling stations, the number of stations needed in a particular region, the region name, a fitness evaluation function, the number of generations to run the algorithm, and the population size as inputs. It uses the DEAP library to create a genetic algorithm that optimizes the placement of the refueling stations. It returns the region name, the final population, the average fitness, minimum fitness, maximum fitness, and index of the individual with the minimum fitness.
+- run_ga: takes a GeoDataFrame of hydrogen refueling stations, a DataFrame with the number of stations needed in each region, the region name, the year, the number of generations, and the population size as inputs. It uses the sales function from pre_process_traffic.py to preprocess the stations based on sales, then calls the genetic_algorithm function to optimize the placement of the refueling stations. It returns the region name, the final population, the average fitness, minimum fitness, maximum fitness, and index of the individual with the minimum fitness.
+
+
+5) question_5.py
+
+This Python script contains functions to solve part 4 of the challenge. 
+
+- clustering_of_stations: takes a DataFrame containing the coordinates of hydrogen fuel stations and clusters them using k-means clustering. This function also plots the inertia and silhouette score of the clustering results.
+- size_of_production_sites_by_cluster: takes a DataFrame containing information on the clusters, including their size and hydrogen demand. The function calculates the number of small and large production sites required to meet the hydrogen demand for each cluster based on the cluster size and the daily hydrogen demand. 
+- main: reads in the data, preprocesses it, clusters the stations using clustering_of_stations, calculates the number of production sites required for each cluster using size_of_production_sites_by_cluster, and outputs the results. The output is a DataFrame containing the cluster index, the number of small and large production sites required for the cluster, and the total cost of production.
+
+#### results
+
+This folder ccontains different csv files with the results of each question.
+
+#### Notebooks 
+
+The differents notebooks are used for all the analysis related to the different parts of the project. These notebooks can be usefull to understand how each function can be used.
 
 ## Contacts LinkedIn 
 ​
