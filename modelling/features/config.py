@@ -1,3 +1,8 @@
+class Config:
+    PATH = '../../data/'
+
+config = Config()
+
 # For Part 1
 class Parameters_part_1():
     avg_speed = 80  # km/h
@@ -41,7 +46,7 @@ class Parameters_filter_stations():
     max_dist_hub = 1000
 
 # set the price of H2 to 15e
-class Genetic_slgorithm():
-    H2_price_2023 = 30
-    H2_price_2030 = 50
+class Genetic_algorithm():
+    num_generations = 30
+    population_size = 50
     mutation_probability = 0.05

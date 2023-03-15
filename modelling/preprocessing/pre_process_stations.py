@@ -4,7 +4,11 @@ import geopandas as gpd
 import pyproj 
 from shapely.geometry import Point
 from shapely.geometry import LineString
+
 from features.config import *
+from preprocessing.helping_functions import *
+from preprocessing.pre_process_traffic import *
+
 
 ######################################################################
 # Part 1, 2 and 3: Preprocess the data stations
@@ -80,19 +84,3 @@ def create_region_columns(
         df[region_name] = data_region.loc[i,'geometry'].contains(df['geometry'])
 
     return df
-
-######################################################################
-# Scenario 3: Load the red player H2 stations from data I.
-
-def load_red_player_stations():
-    '''
-    Load the red player stations with H2 concersion
-    '''
-    df_stations_red_player = pd.read_csv(config.PATH + 'I-Données_de_stations_improved.csv')
-    df_stations_red_player = df_stations_red_player[df_stations_red_player['H2 Conversion']==1]
-    df_stations_red_player = df_stations_red_player.groupby(['URL'])[['nom_region','geometry']].first()
-    df_stations_red_player = df_stations_red_player.reset_index(drop=False)
-    df_stations_red_player = convert_str_geometry_to_geometry_geometry(df_stations_red_player)
-    df_stations_red_player = df_stations_red_player.reset_index(drop=False)
-
-    return df_stations_red_player
