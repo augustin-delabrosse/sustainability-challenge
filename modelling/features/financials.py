@@ -63,13 +63,13 @@ def preprocess_station(df_station: pd.DataFrame, df_tmja: pd.DataFrame) -> pd.Da
     
     return df_station
 
-def sales(df_station:pd.DataFrame, year: float)-> pd.DataFrame:
+def sales(df_station:pd.DataFrame, year: float, scenario: int = 1)-> pd.DataFrame:
     '''
     This functions calculates the amount sold at each new stations in kg/day.
     '''
     h2_price_dict = {2023: 7, 2030: 3, 2040: 1.5}
-    total_demands = {2030: 1110000, 2040: 6*1110000}
-    total_demand = total_demands[year]
+    total_demands = {2030: [1110000,0.5*1110000,1/3*1110000], 2040: [6*1110000,0.5*6*1110000,1/3*6*1110000]}
+    total_demand = total_demands[year][scenario-1]
 
     if year not in h2_price_dict:
         raise ValueError('Year can only be 2023, 2030 or 2040')
@@ -87,7 +87,6 @@ def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame = df_sta
     '''
     info = threshold(df_station_info)
     small_prof_threshold, medium_prof_threshold, large_prof_threshold = info['threshold']*365
-    print (large_prof_threshold)
     df_station['Quantity_sold_per_year(in kg)']= df_station['Quantity_sold_per_day(in kg)']*365
 
     df_station['not_prof'] = (df_station['Quantity_sold_per_year(in kg)']/1000< small_prof_threshold).astype(int)
@@ -108,12 +107,12 @@ def station_type(df_station:pd.DataFrame, df_station_info: pd.DataFrame = df_sta
     else 'unknown', axis=1)
     return df_station
 
-def financials(df_station:pd.DataFrame, year: float, df_station_info: pd.DataFrame = df_station_info)-> pd.DataFrame:
+def financials(df_station:pd.DataFrame, year: float, df_station_info: pd.DataFrame = df_station_info, scenario: int = 1)-> pd.DataFrame:
     '''
     This function provides an overview of the P&L for each station
     '''
+    df_station = sales(df_station,year,scenario=scenario)
     df_station = station_type(df_station, df_station_info)
-    df_station = sales(df_station,year)
     df_station['Revenues'] = df_station['Revenues_day'] * 365
     df_station['EBITDA'] = df_station['Revenues']- df_station['station_type'].map(df_station_info.set_index('station_type')['opex']*1000000)
     df_station['Opex'] = df_station['Revenues'] - df_station['EBITDA']

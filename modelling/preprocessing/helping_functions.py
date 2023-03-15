@@ -5,6 +5,9 @@ import pyproj
 from pyproj import Proj, transform
 from tqdm import tqdm
 
+def read_shape_file(path: str):
+    shp = gpd.read_file(path)
+    return shp
 
 def add_lat_lon_columns(df):
     """
@@ -106,38 +109,121 @@ def convert_str_geometry_to_geometry_geometry(df):
     df['geometry'] = gpd.GeoSeries.from_wkt(df['geometry'])
     return df
 
-def plot_results(roads_shapefile:gpd.geodataframe.GeoDataFrame, df_results:pd.core.frame.DataFrame):
-    """
-    Plot the results of a simulation of H2 station placement on a map.
 
-    Parameters:
-    roads_shapefile : GeoDataFrame
-    A GeoDataFrame containing the roads' shapefile data.
-
-    df_results : DataFrame
-    A DataFrame containing the H2 station placement simulation results.
-    It should contain a 'geometry' column containing the stations' location in
-    string or Shapely.geometry format, and a 'station_type' column with the
-    type of station (i.e., small, medium, large).
-
-    Returns:
-    A plot of the roads and H2 stations overlaid on a map.
-
-    """
-    roads = gpd.GeoDataFrame({'geometry': roads_shapefile.geometry, 
-                              'type': ['route' for i in range(len(roads_shapefile.geometry))],
-                              'nom': roads_shapefile.route}, 
-                             crs=roads_shapefile.crs)
+def add_region_column(df):
+    # Create a dictionary mapping department codes to regions
+    dep_to_region = {
+        '01': 'Auvergne-Rhône-Alpes',
+        '02': 'Hauts-de-France',
+        '03': 'Auvergne-Rhône-Alpes',
+        '04': 'Provence-Alpes-Côte d\'Azur',
+        '05': 'Provence-Alpes-Côte d\'Azur',
+        '06': 'Provence-Alpes-Côte d\'Azur',
+        '07': 'Auvergne-Rhône-Alpes',
+        '08': 'Grand Est',
+        '09': 'Occitanie',
+        '1': 'Auvergne-Rhône-Alpes',
+        '2': 'Hauts-de-France',
+        '3': 'Auvergne-Rhône-Alpes',
+        '4': 'Provence-Alpes-Côte d\'Azur',
+        '5': 'Provence-Alpes-Côte d\'Azur',
+        '6': 'Provence-Alpes-Côte d\'Azur',
+        '7': 'Auvergne-Rhône-Alpes',
+        '8': 'Grand Est',
+        '9': 'Occitanie',
+        '10': 'Grand Est',
+        '11': 'Occitanie',
+        '12': 'Occitanie',
+        '13': 'Provence-Alpes-Côte d\'Azur',
+        '14': 'Normandie',
+        '15': 'Auvergne-Rhône-Alpes',
+        '16': 'Nouvelle-Aquitaine',
+        '17': 'Nouvelle-Aquitaine',
+        '18': 'Centre-Val de Loire',
+        '19': 'Nouvelle-Aquitaine',
+        '21': 'Bourgogne-Franche-Comté',
+        '22': 'Bretagne',
+        '23': 'Nouvelle-Aquitaine',
+        '24': 'Nouvelle-Aquitaine',
+        '25': 'Bourgogne-Franche-Comté',
+        '26': 'Auvergne-Rhône-Alpes',
+        '27': 'Normandie',
+        '28': 'Centre-Val de Loire',
+        '29': 'Bretagne',
+        '2A': 'Corse',
+        '2B': 'Corse',
+        '30': 'Occitanie',
+        '31': 'Occitanie',
+        '32': 'Occitanie',
+        '33': 'Nouvelle-Aquitaine',
+        '34': 'Occitanie',
+        '35': 'Bretagne',
+        '36': 'Centre-Val de Loire',
+        '37': 'Centre-Val de Loire',
+        '38': 'Auvergne-Rhône-Alpes',
+        '39': 'Bourgogne-Franche-Comté',
+        '40': 'Nouvelle-Aquitaine',
+        '41': 'Centre-Val de Loire',
+        '42': 'Auvergne-Rhône-Alpes',
+        '43': 'Auvergne-Rhône-Alpes',
+        '44': 'Pays de la Loire',
+        '45': 'Centre-Val de Loire',
+        '46': 'Occitanie',
+        '47': 'Nouvelle-Aquitaine',
+        '48': 'Occitanie',
+        '49': 'Pays de la Loire',
+        '50': 'Normandie',
+        '51': 'Grand Est',
+        '52': 'Grand Est',
+        '53': 'Pays de la Loire',
+        '54': 'Grand Est',
+        '55': 'Grand Est',
+        '56': 'Bretagne',
+        '57': 'Grand Est',
+        '58': 'Bourgogne-Franche-Comté',
+        '59': 'Hauts-de-France',
+        '60': 'Hauts-de-France',
+        '61': 'Normandie',
+        '62': 'Hauts-de-France',
+        '63': 'Auvergne-Rhône-Alpes',
+        '64': 'Nouvelle-Aquitaine',
+        '65': 'Occitanie',
+        '66': 'Occitanie',
+        '67': 'Grand Est',
+        '68': 'Grand Est',
+        '69': 'Auvergne-Rhône-Alpes',
+        '70': 'Bourgogne-Franche-Comté',
+        '71': 'Bourgogne-Franche-Comté',
+        '72': 'Pays de la Loire',
+        '73': 'Auvergne-Rhône-Alpes',
+        '74': 'Auvergne-Rhône-Alpes',
+        '75': 'Île-de-France',
+        '76': 'Normandie',
+        '77': 'Île-de-France',
+        '78': 'Île-de-France',
+        '79': 'Nouvelle-Aquitaine',
+        '80': 'Hauts-de-France',
+        '81': 'Occitanie',
+        '82': 'Occitanie',
+        '83': 'Provence-Alpes-Côte d\'Azur',
+        '84': 'Provence-Alpes-Côte d\'Azur',
+        '85': 'Pays de la Loire',
+        '86': 'Nouvelle-Aquitaine',
+        '87': 'Nouvelle-Aquitaine',
+        '88': 'Grand Est',
+        '89': 'Bourgogne-Franche-Comté',
+        '90': 'Bourgogne-Franche-Comté',
+        '91': 'Île-de-France',
+        '92': 'Île-de-France',
+        '93': 'Île-de-France',
+        '94': 'Île-de-France',
+        '95': 'Île-de-France',
+        '971': 'Guadeloupe',
+        '972': 'Martinique',
+        '973': 'Guyane',
+        '974': 'La Réunion',
+        '976': 'Mayotte'}
     
-    if type(df_results.geometry[:1].values[0]) == str:
-        df_results = convert_str_geometry_to_geometry_geometry(df_results)
-        
-    stations = gpd.GeoDataFrame({'geometry': df_results.geometry, 
-                                 'type': [f'{i} H2 station' for i in df_results["station_type"]],
-                                 'nom': [f'H2 station n{i}' for i in range(df_results.shape[0])]}, 
-                                crs=roads_shapefile.crs)
-    
-    shp_file = pd.concat([roads, stations])
-    exploration = shp_file.explore(column='type', cmap='tab10')
-    
-    return exploration
+    df['region'] = df['depPrD'].astype(str).map(dep_to_region)
+
+    return df

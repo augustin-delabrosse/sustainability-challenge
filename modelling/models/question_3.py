@@ -19,14 +19,15 @@ from preprocessing.pre_process_traffic import *
 from preprocessing.helping_functions import *
 
 from features.config import *
-from features.question_2_financials import *
+from features.financials import *
 
 from models.question_1 import *
 from models.question_2 import *
 
-from models.genetic_algorithm_part3_1 import *
+from models.question_3_genetic_algorithm import *
 
-## Part 3
+#################################################################
+# Scenario 1, 2 & 3
 
 def deployment_dates(df_station: pd.DataFrame, year_start: float, year_end: float) -> pd.DataFrame:
     '''
@@ -65,8 +66,31 @@ def deployment_dates(df_station: pd.DataFrame, year_start: float, year_end: floa
     
     return merged_df
 
+#################################################################
+# Financials for scenarios 1,2,3
 
-def scenario_select(df_deployments: pd.DataFrame, percentage: float) -> pd.DataFrame:
+def deployment_financials(df_station:pd.DataFrame,year_start: float,year_end: float)-> pd.DataFrame:
+    '''
+    This functions gives a detail financial overview of the cumulatitve stations metrics
+    
+    '''
+    df_station = deployment_dates(df_station,year_start,year_end)
+    years = sorted(df_station['date_installation'].unique())
+    data = []
+    for i, year in enumerate(years):
+        cumulative_df = df_station[df_station['date_installation'] <= year]
+        cumulative_data = cumulative_df[['Quantity_sold_per_year(in kg)', 'Revenues', 'Opex', 'EBITDA', 'depreciation', 'EBIT', 'small_station', 'medium_station', 'large_station']].sum()
+        data.append(cumulative_data)
+
+    df_cumulative_financials = pd.DataFrame(data, index=years, columns=['Quantity_sold_per_year(in kg)', 'Revenues', 'Opex', 'EBITDA', 'depreciation', 'EBIT', 'small_station', 'medium_station', 'large_station'])
+
+    return df_cumulative_financials
+
+
+#################################################################
+# Scenario 2
+
+def scenario_2(df_deployments: pd.DataFrame, percentage: float) -> pd.DataFrame:
     """
     This function randomly selects a given percentage of each station each year, and outputs a dataframe with all the randomly selected years.
     """
@@ -87,20 +111,3 @@ def scenario_select(df_deployments: pd.DataFrame, percentage: float) -> pd.DataF
     output_df = pd.merge(df_deployments, selected_years_df, left_on='geometry', right_index=True)
 
     return output_df
-
-def deployment_financials(df_station:pd.DataFrame,year_start: float,year_end: float)-> pd.DataFrame:
-    '''
-    This functions gives a detail financial overview of the cumulatitve stations metrics
-    
-    '''
-    df_station = deployment_dates(df_station,year_start,year_end)
-    years = sorted(df_station['date_installation'].unique())
-    data = []
-    for i, year in enumerate(years):
-        cumulative_df = df_station[df_station['date_installation'] <= year]
-        cumulative_data = cumulative_df[['Quantity_sold_per_year(in kg)', 'Revenues', 'Opex', 'EBITDA', 'depreciation', 'EBIT', 'small_station', 'medium_station', 'large_station']].sum()
-        data.append(cumulative_data)
-
-    df_cumulative_financials = pd.DataFrame(data, index=years, columns=['Quantity_sold_per_year(in kg)', 'Revenues', 'Opex', 'EBITDA', 'depreciation', 'EBIT', 'small_station', 'medium_station', 'large_station'])
-
-    return df_cumulative_financials

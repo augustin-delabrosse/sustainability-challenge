@@ -19,12 +19,57 @@ from preprocessing.pre_process_traffic import *
 from preprocessing.helping_functions import *
 
 from features.config import *
-from features.question_2_financials import *
+from features.financials import *
 
 from models.question_1 import *
 from models.question_2 import *
-from models.genetic_algorithm_part3_1 import *
+from models.question_3_genetic_algorithm import *
 
+
+def clustering_of_stations(results:pd.core.frame.DataFrame, k_max:int=40, seed:int=5) -> dict:
+    """
+    Perform k-means clustering on the given data and return the results.
+
+    Args:
+    - results: a pandas DataFrame containing the data to be clustered, with columns 'easting' and 'northing'.
+    - k_max: an integer specifying the maximum number of clusters to consider.
+
+    Returns:
+    A dictionary containing the clustering results for each value of k between 2 and k_max, inclusive.
+    The dictionary has keys representing the number of clusters (k), and values representing the clustering results.
+    The clustering results are themselves dictionaries with the following keys:
+    - 'inertia': the sum of squared distances of samples to their closest cluster center.
+    - 'silhouette': a measure of how similar an object is to its own cluster compared to other clusters.
+    - 'labels': the labels of each point in the input data after clustering.
+    - 'centroids': the coordinates of the cluster centers.
+
+    """
+
+    results_to_cluster = results[['easting', "northing"]]
+    result_of_clustering = {}
+    K = range(2, k_max)
+    for k in tqdm(K):
+        result_of_clustering[k] = {}
+        kmeanModel = KMeans(n_clusters=k, random_state=seed)
+        kmeanModel.fit(results_to_cluster)
+        result_of_clustering[k]['inertia'] = kmeanModel.inertia_
+        result_of_clustering[k]['silhouette'] = silhouette_score(results_to_cluster, kmeanModel.labels_)
+        result_of_clustering[k]['labels'] = kmeanModel.labels_
+        result_of_clustering[k]['centroids'] = kmeanModel.cluster_centers_
+    
+    _, (ax1, ax2) = plt.subplots(2, 1, figsize=(20,16))
+
+    ax1.plot(K, [i["inertia"] for i in result_of_clustering.values()], 'bx-')
+
+    ax2.plot(K, [i["silhouette"] for i in result_of_clustering.values()], 'bx-')
+
+    ax1.set_title('Finding the optimal k', {'fontsize':30})
+    ax1.set_ylabel('Inertia')
+    ax2.set_ylabel('Silhouette score')
+
+    plt.show()
+
+    return result_of_clustering 
 
 def size_of_production_sites_by_cluster(df:pd.core.frame.DataFrame):
     """

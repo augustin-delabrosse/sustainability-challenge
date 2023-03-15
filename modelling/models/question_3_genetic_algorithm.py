@@ -9,10 +9,13 @@ from preprocessing.pre_process_traffic import *
 from preprocessing.helping_functions import *
 
 from features.config import *
-from features.question_2_financials import *
+from features.financials import *
 
 from models.question_1 import *
 from models.question_2 import *
+
+###################################################################################
+# Scenario 1: same genetic algorithm but by adding a constraint with total functions
 
 def genetic_algorithm(
         df_stations,
@@ -174,8 +177,10 @@ def extract_restults(
 
     return chosen_stations
 
-### Part 3.3: same genetic algorithm but by adding a constraint with total functions
-def run_ga_total(
+###################################################################################
+# Scenario 3: same genetic algorithm but by adding a constraint with total functions
+
+def run_ga_3_3(
         df_stations: gpd.GeoDataFrame,
         nb_stations_per_region: pd.DataFrame,
         region_name: str,
@@ -188,7 +193,7 @@ def run_ga_total(
     nb_stations = nb_stations_per_region[nb_stations_per_region['Region']==region_name][f'Hydrogen Stations Needed {year}'].values[0]
 
     # Define the fitness function that takes a pandas DataFrame as input and returns a fitness score
-    def fitness_total(X,nb_stations=nb_stations,data: pd.DataFrame=df_stations):
+    def fitness_3_3(X,nb_stations=nb_stations,data: pd.DataFrame=df_stations):
         index = X[0]
 
         if type(index)==int:
@@ -210,7 +215,7 @@ def run_ga_total(
     
     # Define the evaluation function
     def evaluate(individual):
-        return fitness_total(individual),
+        return fitness_3_3(individual),
     
     region_name,population,avg_fitness,min_fitness,max_fitness,arg_min_fitness = genetic_algorithm(
         df_stations,
@@ -222,3 +227,4 @@ def run_ga_total(
         )
     
     return region_name,population,avg_fitness,min_fitness,max_fitness,arg_min_fitness
+

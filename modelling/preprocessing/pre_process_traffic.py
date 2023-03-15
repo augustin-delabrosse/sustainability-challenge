@@ -4,6 +4,9 @@ from preprocessing.pre_process_stations import *
 from preprocessing.pre_process_traffic import *
 import reverse_geocoder as rg
 
+######################################################################
+# Preprocess the traffic data from the tmja 2019 csv
+
 def preprocess_data(df):
     """
     Preprocesses a given DataFrame.

@@ -39,3 +39,9 @@ class Parameters_filter_stations():
     max_dist_road = 1000
     max_dist_dense_hub = 50000
     max_dist_hub = 1000
+
+# set the price of H2 to 15e
+class Genetic_slgorithm():
+    H2_price_2023 = 30
+    H2_price_2030 = 50
+    mutation_probability = 0.05

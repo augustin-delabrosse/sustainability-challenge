@@ -14,12 +14,12 @@ from preprocessing.pre_process_traffic import *
 from preprocessing.helping_functions import *
 
 from features.config import *
-from features.question_2_financials import *
+from features.financials import *
 
 from models.question_1 import *
 from models.question_2 import *
 
-from models.genetic_algorithm_part3_1 import *
+from models.question_3_genetic_algorithm import *
 
 def plot_results(roads_shapefile:gpd.geodataframe.GeoDataFrame, df_results:pd.core.frame.DataFrame):
     """
@@ -56,7 +56,7 @@ def plot_results(roads_shapefile:gpd.geodataframe.GeoDataFrame, df_results:pd.co
     exploration = shp_file.explore(column='type', cmap='tab10')
     
     return exploration
-    
+
 def plotting_installations(df:pd.core.frame.DataFrame):
     """
     Plot the installation dates of H2 stations on a map.
@@ -85,6 +85,7 @@ def plotting_installations(df:pd.core.frame.DataFrame):
     exploration = shp_file.explore(column="date_installation", cmap="Blues")
     
     return exploration
+
 
 def plot_clusters_(production_sites, routes, stations, cmap:str="gist_ncar"):
     """
